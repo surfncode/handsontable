@@ -1,14 +1,22 @@
-
-import * as dom from './../../../dom.js';
-import {objectEach, toUpperCaseFirst} from './../../../helpers.js';
-import {randomString} from './../../../helpers.js';
-import {WalkontableEvent} from './event.js';
-import {WalkontableOverlays} from './overlays.js';
-import {WalkontableScroll} from './scroll.js';
-import {WalkontableSettings} from './settings.js';
-import {WalkontableTable} from './table.js';
-import {WalkontableViewport} from './viewport.js';
-
+import {
+  addClass,
+  fastInnerText,
+  isVisible,
+  removeClass,
+} from './../../../helpers/dom/element';
+import {objectEach} from './../../../helpers/object';
+import {toUpperCaseFirst, randomString} from './../../../helpers/string';
+import {WalkontableEvent} from './event';
+import {WalkontableOverlays} from './overlays';
+import {WalkontableScroll} from './scroll';
+import {WalkontableSettings} from './settings';
+import {WalkontableTable} from './table';
+import {WalkontableViewport} from './viewport';
+import {WalkontableOverlay} from './overlay/_base.js';
+import {WalkontableTopOverlay} from './overlay/top.js';
+import {WalkontableLeftOverlay} from './overlay/left.js';
+import {WalkontableDebugOverlay} from './overlay/debug.js';
+import {WalkontableTopLeftCornerOverlay} from './overlay/topLeftCorner.js';
 
 /**
  * @class Walkontable
@@ -52,7 +60,7 @@ class Walkontable {
       if (!this.getSetting('columnHeaders').length) {
         this.update('columnHeaders', [
           function(column, TH) {
-            dom.fastInnerText(TH, originalHeaders[column]);
+            fastInnerText(TH, originalHeaders[column]);
           }
         ]);
       }
@@ -72,7 +80,7 @@ class Walkontable {
   draw(fastDraw = false) {
     this.drawInterrupted = false;
 
-    if (!fastDraw && !dom.isVisible(this.wtTable.TABLE)) {
+    if (!fastDraw && !isVisible(this.wtTable.TABLE)) {
       // draw interrupted because TABLE is not visible
       this.drawInterrupted = true;
     } else {
@@ -95,17 +103,30 @@ class Walkontable {
       return this.wtTable.getCell(coords);
     }
 
-    let fixedRows = this.wtSettings.getSetting('fixedRowsTop');
+    let totalRows = this.wtSettings.getSetting('totalRows');
+    let fixedRowsTop = this.wtSettings.getSetting('fixedRowsTop');
+    let fixedRowsBottom = this.wtSettings.getSetting('fixedRowsBottom');
     let fixedColumns = this.wtSettings.getSetting('fixedColumnsLeft');
 
-    if (coords.row < fixedRows && coords.col < fixedColumns) {
+    if (coords.row < fixedRowsTop && coords.col < fixedColumns) {
       return this.wtOverlays.topLeftCornerOverlay.clone.wtTable.getCell(coords);
 
-    } else if (coords.row < fixedRows) {
+    } else if (coords.row < fixedRowsTop) {
       return this.wtOverlays.topOverlay.clone.wtTable.getCell(coords);
+
+    } else if (coords.col < fixedColumns && coords.row >= totalRows - fixedRowsBottom) {
+      if (this.wtOverlays.bottomLeftCornerOverlay && this.wtOverlays.bottomLeftCornerOverlay.clone) {
+        return this.wtOverlays.bottomLeftCornerOverlay.clone.wtTable.getCell(coords);
+      }
 
     } else if (coords.col < fixedColumns) {
       return this.wtOverlays.leftOverlay.clone.wtTable.getCell(coords);
+
+    } else if (coords.row < totalRows && coords.row > totalRows - fixedRowsBottom) {
+      if (this.wtOverlays.bottomOverlay && this.wtOverlays.bottomOverlay.clone) {
+        return this.wtOverlays.bottomOverlay.clone.wtTable.getCell(coords);
+      }
+
     }
 
     return this.wtTable.getCell(coords);
@@ -180,6 +201,20 @@ class Walkontable {
   }
 
   /**
+   * Check overlay type of this Walkontable instance.
+   *
+   * @param {String} name Clone type @see {WalkontableOverlay.CLONE_TYPES}.
+   * @returns {Boolean}
+   */
+  isOverlayName(name) {
+    if (this.cloneOverlay) {
+      return this.cloneOverlay.type === name;
+    }
+
+    return false;
+  }
+
+  /**
    * Export settings as class names added to the parent element of the table.
    */
   exportSettingsAsClassNames() {
@@ -196,8 +231,8 @@ class Walkontable {
       }
       allClassNames.push('ht' + toUpperCaseFirst(key));
     });
-    dom.removeClass(this.wtTable.wtRootElement.parentNode, allClassNames);
-    dom.addClass(this.wtTable.wtRootElement.parentNode, newClassNames);
+    removeClass(this.wtTable.wtRootElement.parentNode, allClassNames);
+    addClass(this.wtTable.wtRootElement.parentNode, newClassNames);
   }
 
   /**

@@ -1,6 +1,5 @@
 
-import * as dom from './../../../dom.js';
-
+import {fastInnerText} from './../../../helpers/dom/element';
 
 /**
  * @class WalkontableSettings
@@ -12,6 +11,7 @@ class WalkontableSettings {
    */
   constructor(wotInstance, settings) {
     this.wot = wotInstance;
+
     // legacy support
     this.instance = wotInstance;
 
@@ -25,15 +25,22 @@ class WalkontableSettings {
       stretchH: 'none', // values: all, last, none
       currentRowClassName: null,
       currentColumnClassName: null,
+      preventOverflow: function() {
+        return false;
+      },
 
       //data source
       data: void 0,
       fixedColumnsLeft: 0,
       fixedRowsTop: 0,
+      fixedRowsBottom: 0,
+      minSpareRows: 0,
+
       // this must be array of functions: [function (row, TH) {}]
       rowHeaders: function() {
         return [];
       },
+
       // this must be array of functions: [function (column, TH) {}]
       columnHeaders: function() {
         return [];
@@ -43,8 +50,9 @@ class WalkontableSettings {
       cellRenderer: (row, column, TD) => {
         let cellData = this.getSetting('data', row, column);
 
-        dom.fastInnerText(TD, cellData === void 0 || cellData === null ? '' : cellData);
+        fastInnerText(TD, cellData === void 0 || cellData === null ? '' : cellData);
       },
+
       // columnWidth: 50,
       columnWidth: function(col) {
         return; //return undefined means use default size for the rendered cell content
@@ -62,6 +70,8 @@ class WalkontableSettings {
       //callbacks
       onCellMouseDown: null,
       onCellMouseOver: null,
+      onCellMouseUp: null,
+
       //    onCellMouseOut: null,
       onCellDblClick: null,
       onCellCornerMouseDown: null,
@@ -73,14 +83,20 @@ class WalkontableSettings {
       onScrollHorizontally: null,
       onBeforeTouchScroll: null,
       onAfterMomentumScroll: null,
+      onBeforeStretchingColumnWidth: (width) => width,
+      onModifyRowHeaderWidth: null,
 
       //constants
       scrollbarWidth: 10,
       scrollbarHeight: 10,
 
       renderAllRows: false,
-      groups: false
+      groups: false,
+      rowHeaderWidth: null,
+      columnHeaderHeight: null,
+      headerClassName: null
     };
+
     // reference to settings
     this.settings = {};
 

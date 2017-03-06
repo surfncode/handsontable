@@ -1,14 +1,3 @@
-/*!
- * Handsontable @@version
- * Handsontable is a JavaScript library for editable tables with basic copy-paste compatibility with Excel and Google Docs
- *
- * Copyright @@year Handsoncode sp. z o.o. <hello@handsontable.com>
- * Licensed under the MIT license.
- * http://handsontable.com/
- *
- * Date: @@timestamp
- */
-
 .handsontable {
   position: relative;
 }
@@ -86,6 +75,8 @@
 
 .handsontable th,
 .handsontable td {
+  border-top-width: 0;
+  border-left-width: 0;
   border-right: 1px solid #CCC;
   border-bottom: 1px solid #CCC;
   height: 22px;
@@ -99,6 +90,7 @@
   outline-width: 0;
   white-space: pre-line;
   /* preserve new line character in cell */
+  background-clip: padding-box;
 }
 
 .handsontable td.htInvalid {
@@ -124,6 +116,7 @@
 }
 
 .handsontable th:first-child,
+.handsontable th:nth-child(2),
 .handsontable td:first-of-type,
 .handsontable .htNoFrame + th,
 .handsontable .htNoFrame + td {
@@ -139,9 +132,8 @@
   border-top: 1px solid #CCC;
 }
 
-.ht_master:not(.innerBorderLeft) ~ .handsontable tbody tr th,
-.ht_master:not(.innerBorderLeft) ~ .handsontable:not(.ht_clone_top) thead tr th:first-child
-{
+.ht_master:not(.innerBorderLeft):not(.emptyColumns) ~ .handsontable tbody tr th,
+.ht_master:not(.innerBorderLeft):not(.emptyColumns) ~ .handsontable:not(.ht_clone_top) thead tr th:first-child {
   border-right-width: 0;
 }
 
@@ -153,7 +145,7 @@
 }
 
 .handsontable th {
-  background-color: #EEE;
+  background-color: #f3f3f3;
   color: #222;
   text-align: center;
   font-weight: normal;
@@ -167,61 +159,24 @@
 .handsontable th.active {
   background-color: #CCC;
 }
-
 .handsontable thead th .relative {
   padding: 2px 4px;
 }
 
+/* selection */
+.handsontable tbody th.ht__highlight,
+.handsontable thead th.ht__highlight {
+  background-color: #dcdcdc;
+}
+.handsontable.ht__selection--columns thead th.ht__highlight,
+.handsontable.ht__selection--rows tbody th.ht__highlight {
+  background-color: #8eb0e7;
+  color: #000;
+}
+
 /* plugins */
 
-.handsontable .manualColumnMover {
-  position: fixed;
-  left: 0;
-  top: 0;
-  background-color: transparent;
-  width: 5px;
-  height: 25px;
-  z-index: 999;
-  cursor: move;
-}
-
-.handsontable .manualRowMover {
-  position: fixed;
-  left: -4px;
-  top: 0;
-  background-color: transparent;
-  height: 5px;
-  width: 50px;
-  z-index: 999;
-  cursor: move;
-}
-
-.handsontable .manualColumnMoverGuide,
-.handsontable .manualRowMoverGuide {
-  position: fixed;
-  left: 0;
-  top: 0;
-  background-color: #CCC;
-  width: 25px;
-  height: 25px;
-  opacity: 0.7;
-  display: none;
-}
-
-.handsontable .manualColumnMoverGuide.active,
-.handsontable .manualRowMoverGuide.active {
-  display: block;
-}
-
-.handsontable .manualColumnMover:hover,
-.handsontable .manualColumnMover.active,
-.handsontable .manualRowMover:hover,
-.handsontable .manualRowMover.active{
-  background-color: #88F;
-}
-
 /* row + column resizer*/
-
 .handsontable .manualColumnResizer {
   position: fixed;
   top: 0;
@@ -272,6 +227,7 @@
 .handsontable .manualColumnResizerGuide.active,
 .handsontable .manualRowResizerGuide.active {
   display: block;
+  z-index: 199;
 }
 
 .handsontable .columnSorting {
@@ -442,32 +398,17 @@ AutocompleteRenderer down arrow
 /*
 CheckboxRenderer
 */
-
+.handsontable .htCheckboxRendererInput {
+  display: inline-block;
+  vertical-align: middle;
+}
 .handsontable .htCheckboxRendererInput.noValue {
   opacity: 0.5;
 }
-
-/*
-NumericRenderer
-*/
-
-.handsontable .htNumeric {
-  text-align: right;
-}
-
-/*
-Comment For Cell
-*/
-.htCommentCell{
-  position: relative;
-}
-.htCommentCell:after{
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  border-left: 6px solid transparent;
-  border-top: 6px solid red;
+.handsontable .htCheckboxRendererLabel {
+  cursor: pointer;
+  display: inline-block;
+  width: 100%;
 }
 
 @-webkit-keyframes opacity-hide {
@@ -519,12 +460,6 @@ Comment For Cell
   padding: 0 0 5px 0;
 }
 
-/* removing shadows, TODO: remove the commented code and this comment  */
-/*.handsontable .handsontable:not(.ht_master) table {*/
-  /*-webkit-box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.4);*/
-  /*box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.4);*/
-/*}*/
-
 /**
 * Autocomplete Editor
 */
@@ -555,7 +490,7 @@ Comment For Cell
 .handsontable.listbox tr:last-child th,
 .handsontable.listbox tr:first-child td,
 .handsontable.listbox td {
-  border-width: 0;
+  border-color: transparent;
 }
 
 .handsontable.listbox th,
@@ -579,20 +514,6 @@ Comment For Cell
   background: #eee;
 }
 
-.htContextMenu {
-  display: none;
-  position: absolute;
-  z-index: 1060; /*needs to be higher than 1050 - z-index for Twitter Bootstrap modal (#1569)*/
-  overflow: hidden;
-}
-
-.htContextMenu .ht_clone_top,
-.htContextMenu .ht_clone_left,
-.htContextMenu .ht_clone_corner,
-.htContextMenu .ht_clone_debug {
-  display: none;
-}
-
 .ht_clone_top {
   z-index: 101;
 }
@@ -601,72 +522,13 @@ Comment For Cell
   z-index: 102;
 }
 
-.ht_clone_corner {
+.ht_clone_top_left_corner,
+.ht_clone_bottom_left_corner {
   z-index: 103;
 }
 
 .ht_clone_debug {
   z-index: 103;
-}
-
-.htContextMenu table.htCore {
-  border: 1px solid #bbb;
-}
-
-.htContextMenu .wtBorder {
-  visibility: hidden;
-}
-
-.htContextMenu table tbody tr td {
-  background: white;
-  border-width: 0;
-  padding: 4px 6px 0px 6px;
-  cursor: pointer;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.htContextMenu table tbody tr td:first-child {
-  border: 0;
-}
-
-.htContextMenu table tbody tr td.htDimmed{
-  font-style: normal;
-  color: #323232;
-}
-
-.htContextMenu table tbody tr td.current,
-.htContextMenu table tbody tr td.zeroclipboard-is-hover {
-  background: rgb(233, 233, 233);
-}
-
-.htContextMenu table tbody tr td.htSeparator {
-  border-top: 1px solid #bbb;
-  height: 0;
-  padding: 0;
-}
-
-.htContextMenu table tbody tr td.htDisabled {
-  color: #999;
-}
-
-.htContextMenu table tbody tr td.htDisabled:hover {
-  background: white;
-  color: #999;
-  cursor: default;
-}
-.htContextMenu table tbody tr td div{
-  padding-left: 10px;
-}
-.htContextMenu table tbody tr td div span.selected{
-  margin-top: -2px;
-  position: absolute;
-  left: 4px;
-}
-
-.htContextMenu .ht_master .wtHolder {
-  overflow: hidden;
 }
 
 .handsontable td.htSearchResult {
@@ -681,93 +543,35 @@ Cell borders
   /*box-sizing: border-box !important;*/
   border-width: 1px;
 }
-.htBordered.htTopBorderSolid{
+.htBordered.htTopBorderSolid {
   border-top-style: solid;
   border-top-color: #000;
 }
-.htBordered.htRightBorderSolid{
+.htBordered.htRightBorderSolid {
   border-right-style: solid;
   border-right-color: #000;
 }
-.htBordered.htBottomBorderSolid{
+.htBordered.htBottomBorderSolid {
   border-bottom-style: solid;
   border-bottom-color: #000;
 }
-.htBordered.htLeftBorderSolid{
+.htBordered.htLeftBorderSolid {
   border-left-style: solid;
   border-left-color: #000;
-}
-
-.htCommentTextArea{
-  -moz-box-shadow: 1px 1px 2px #bbb;
-  -webkit-box-shadow: 1px 1px 2px #bbb;
-  background-color: #FFFACD;
-  border: 1px solid #999;
-  box-shadow: 1px 1px 2px #bbb;
-  font-family: 'Arial';
-}
-
-
-/* Grouping indicators */
-.handsontable colgroup col.rowHeader.htGroupCol {
-  width: 25px !important;
-}
-.handsontable colgroup col.rowHeader.htGroupColClosest {
-  width: 30px !important;
-}
-
-.handsontable .htGroupIndicatorContainer {
-  background: #fff;
-  border: 0px;
-  padding-bottom: 0px;
-  vertical-align: bottom;
-  position: relative;
-}
-
-.handsontable thead .htGroupIndicatorContainer {
-  vertical-align: top;
-  border-bottom: 0px;
 }
 
 .handsontable tbody tr th:nth-last-child(2) {
   border-right: 1px solid #CCC;
 }
 
-.handsontable thead tr:nth-last-child(2) th {
+.handsontable thead tr:nth-last-child(2) th.htGroupIndicatorContainer {
   border-bottom: 1px solid #CCC;
   padding-bottom: 5px;
 }
 
 
-.ht_clone_corner thead tr th:nth-last-child(2) {
+.ht_clone_top_left_corner thead tr th:nth-last-child(2) {
   border-right: 1px solid #CCC;
-}
-
-.htVerticalGroup {
-  height: 100%;
-}
-
-.htHorizontalGroup {
-  width: 100%;
-  height: 100%;
-}
-
-.htVerticalGroup:not(.htCollapseButton):after {
-  content: "";
-  height: 100%;
-  width: 1px;
-  display: block;
-  background: #ccc;
-  margin-left: 5px;
-}
-
-.htHorizontalGroup:not(.htCollapseButton):after {
-  content: "";
-  width: 100%;
-  height: 1px;
-  display: block;
-  background: #ccc;
-  margin-top: 20%;
 }
 
 .htCollapseButton {
@@ -811,37 +615,6 @@ thead .htCollapseButton:after {
   top: 4px;
 }
 
-.handsontable tr th .htGroupStart:after {
-  background: transparent;
-  border-left: 1px solid #ccc;
-  border-top: 1px solid #ccc;
-  width: 5px;
-  position: relative;
-  top: 50%;
-}
-
-.handsontable thead tr th .htGroupStart:after {
-  background: transparent;
-  border-left: 1px solid #ccc;
-  border-top: 1px solid #ccc;
-  height: 5px;
-  width: 50%;
-  position: relative;
-  top: 0px;
-  left: 50%;
-}
-
-.handsontable .htGroupLevelTrigger {
-  -webkit-box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
-  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
-  width: 15px;
-  height: 15px;
-  margin: 4px auto;
-  padding: 0px;
-  line-height: 15px;
-  cursor: pointer;
-}
-
 .handsontable tr th .htExpandButton {
   position: absolute;
   width: 10px;
@@ -853,7 +626,7 @@ thead .htCollapseButton:after {
   -webkit-box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
   box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
   cursor: pointer;
-  top: 0px;
+  top: 0;
   display: none;
 }
 
@@ -866,8 +639,31 @@ thead .htCollapseButton:after {
   display: block;
 }
 
+.collapsibleIndicator {
+  position: absolute;
+  top: 50%;
+  transform: translate(0% ,-50%);
+  right: 5px;
+  border: 1px solid #A6A6A6;
+  line-height: 10px;
+  color: #222;
+  border-radius: 10px;
+  font-size: 10px;
+  width: 10px;
+  height: 10px;
+  cursor: pointer;
+  -webkit-box-shadow: 0 0 0 6px rgba(238,238,238,1);
+  -moz-box-shadow: 0 0 0 6px rgba(238,238,238,1);
+  box-shadow: 0 0 0 6px rgba(238,238,238,1);
+  background: #eee;
+}
+
 .handsontable col.hidden {
-  width: 0px !important;
+  width: 0 !important;
+}
+
+.handsontable table tr th.lightRightBorder {
+  border-right: 1px solid #E6E6E6;
 }
 
 .handsontable tr.hidden,
@@ -878,7 +674,8 @@ thead .htCollapseButton:after {
 
 .ht_master,
 .ht_clone_left,
-.ht_clone_top {
+.ht_clone_top,
+.ht_clone_bottom {
   overflow: hidden;
 }
 
@@ -891,7 +688,8 @@ thead .htCollapseButton:after {
   overflow-y: auto;
 }
 
-.ht_clone_top .wtHolder {
+.ht_clone_top .wtHolder,
+.ht_clone_bottom .wtHolder {
   overflow-x: auto;
   overflow-y: hidden;
 }

@@ -12,6 +12,8 @@
   <script data-jsfiddle="common" src="../dist/pikaday/pikaday.js"></script>
   <script data-jsfiddle="common" src="../dist/moment/moment.js"></script>
   <script data-jsfiddle="common" src="../dist/zeroclipboard/ZeroClipboard.js"></script>
+  <script data-jsfiddle="common" src="../dist/numbro/numbro.js"></script>
+  <script data-jsfiddle="common" src="../dist/numbro/languages.js"></script>
   <script data-jsfiddle="common" src="../dist/handsontable.js"></script>
 
   <!--
@@ -119,7 +121,7 @@
 
                   // BACKSPACE or DELETE
                   if (e.keyCode === 8 || e.keyCode === 46) {
-                    e.stopImmediatePropagation();
+                    Handsontable.dom.stopImmediatePropagation(e);
                     // remove data at cell, shift up
                     hot.spliceCol(selection[1], selection[0], 1);
                     e.preventDefault();
@@ -128,7 +130,7 @@
                   else if (e.keyCode === 13) {
                     // if last change affected a single cell and did not change it's values
                     if (lastChange && lastChange.length === 1 && lastChange[0][2] == lastChange[0][3]) {
-                      e.stopImmediatePropagation();
+                      Handsontable.dom.stopImmediatePropagation(e);
                       hot.spliceCol(selection[1], selection[0], 0, ''); // add new cell
                       hot.selectCell(selection[0], selection[1]); // select new cell
                     }

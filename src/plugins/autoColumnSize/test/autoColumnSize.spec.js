@@ -31,17 +31,119 @@ describe('AutoColumnSize', function () {
     expect(width1).toBeLessThan(width2);
   });
 
-  it('should correctly detect column width with colHeaders', function () {
+  it('should update column width after update value in cell (array of objects)', function () {
     handsontable({
       data: arrayOfObjects(),
       autoColumnSize: true,
+      columns: [
+        {data: 'id'},
+        {data: 'name'},
+        {data: 'lastName'},
+      ]
+    });
+
+    expect(colWidth(this.$container, 0)).toBeAroundValue(50, 3);
+    expect([117, 120, 121, 129, 135]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 1)]));
+    expect([216, 229, 247, 260]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 2)]));
+
+    setDataAtRowProp(0, 'id', 'foo bar foo bar foo bar');
+    setDataAtRowProp(0, 'name', 'foo');
+
+    expect([165, 168, 169, 189, 191]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+    expect(colWidth(this.$container, 1)).toBeAroundValue(50, 3);
+    expect([216, 229, 247, 260]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 2)]));
+  });
+
+  it('should correctly detect column widths with colHeaders', function () {
+    handsontable({
+      data: arrayOfObjects(),
+      autoColumnSize: true,
+      colHeaders: ['Identifier Longer text'],
+      columns: [
+        {data: 'id'},
+        {data: 'name'},
+      ]
+    });
+
+    expect([149, 155, 174, 178]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+  });
+
+  it('should correctly detect column widths after update colHeaders when headers were passed as an array', function () {
+    handsontable({
+      data: arrayOfObjects(),
+      autoColumnSize: true,
+      colHeaders: true,
+      columns: [
+        {data: 'id'},
+        {data: 'name'},
+      ]
+    });
+
+    expect([50, 51, 53]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+
+    updateSettings({colHeaders: ['Identifier Longer text', 'Identifier Longer and longer text']});
+
+    expect([149, 155, 174, 178]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+    expect([226, 235, 263, 270]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 1)]));
+  });
+
+  it('should correctly detect column widths after update colHeaders when headers were passed as a string', function () {
+    handsontable({
+      data: arrayOfObjects(),
+      autoColumnSize: true,
+      colHeaders: true,
+      columns: [
+        {data: 'id'},
+        {data: 'name'},
+      ]
+    });
+
+    expect([50, 51, 53]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+
+    updateSettings({colHeaders: 'Identifier Longer text'});
+
+    expect([149, 155, 174, 178]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+    expect([149, 155, 174, 178]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 1)]));
+  });
+
+  it('should correctly detect column widths after update colHeaders when headers were passed as a function', function () {
+    handsontable({
+      data: arrayOfObjects(),
+      autoColumnSize: true,
+      colHeaders: true,
+      columns: [
+        {data: 'id'},
+        {data: 'name'},
+      ]
+    });
+
+    expect([50, 51, 53]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+
+    updateSettings({
+      colHeaders: function(index) {
+        return index === 0 ? 'Identifier Longer text' : 'Identifier Longer and longer text';
+      },
+    });
+
+    expect([149, 155, 174, 178]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+    expect([226, 235, 263, 270]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 1)]));
+  });
+
+  it('should correctly detect column width with colHeaders and the useHeaders option set to false (not taking the header widths into calculation)', function () {
+    handsontable({
+      data: [
+        {id: 'ab'}
+      ],
+      autoColumnSize: {
+        useHeaders: false
+      },
       colHeaders: ['Identifier'],
       columns: [
         {data: 'id'}
       ]
     });
 
-    expect(colWidth(this.$container, 0)).toBeAroundValue(56);
+    expect(colWidth(this.$container, 0)).toBe(50);
   });
 
   it('should correctly detect column width with columns.title', function () {
@@ -53,11 +155,68 @@ describe('AutoColumnSize', function () {
       ]
     });
 
-    expect(colWidth(this.$container, 0)).toBeAroundValue(56);
+    expect([68, 70, 71, 80, 82]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+  });
+
+  it('should correctly detect column widths after update columns.title', function () {
+    handsontable({
+      data: arrayOfObjects(),
+      autoColumnSize: true,
+      columns: [
+        {data: 'id', title: 'Identifier'}
+      ]
+    });
+
+    updateSettings({
+      columns: [
+        {data: 'id', title: 'Identifier with longer text'},
+      ],
+    });
+
+    expect([174, 182, 183, 208, 213]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+  });
+
+  // https://github.com/handsontable/handsontable/issues/2684
+  it('should correctly detect column width when table is hidden on init (display: none)', function (done) {
+    this.$container.css('display', 'none');
+    var hot = handsontable({
+      data: arrayOfObjects(),
+      autoColumnSize: true,
+      colHeaders: ['Identifier', 'First Name']
+    });
+
+    setTimeout(function () {
+      spec().$container.css('display', 'block');
+      hot.render();
+
+      expect([68, 70, 71, 80, 82]).toEqual(jasmine.arrayContaining([colWidth(spec().$container, 0)]));
+      done();
+    }, 200);
+  });
+
+  it('should keep last columns width unchanged if all rows was removed', function () {
+    var hot = handsontable({
+      data: arrayOfObjects(),
+      autoColumnSize: true,
+      columns: [
+        {data: 'id', title: 'Identifier'},
+        {data: 'name', title: 'Name'},
+        {data: 'lastName', title: 'Last Name'},
+      ]
+    });
+
+    expect([68, 70, 71, 80, 82]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+    expect([117, 120, 121, 129, 135]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 1)]));
+    expect([216, 229, 247, 260]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 2)]));
+
+    hot.alter('remove_row', 0);
+
+    expect([68, 70, 71, 80, 82]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 0)]));
+    expect([117, 120, 121, 129, 135]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 1)]));
+    expect([216, 229, 247, 260]).toEqual(jasmine.arrayContaining([colWidth(this.$container, 2)]));
   });
 
   it('should be possible to disable plugin using updateSettings', function () {
-
     handsontable({
       data: arrayOfObjects()
     });
@@ -83,9 +242,7 @@ describe('AutoColumnSize', function () {
   });
 
   it('should apply disabling/enabling plugin using updateSettings, only to a particular HOT instance', function () {
-
     this.$container2 = $('<div id="' + id + '-2"></div>').appendTo('body');
-
 
     handsontable({
       data: arrayOfObjects()
@@ -138,7 +295,6 @@ describe('AutoColumnSize', function () {
   });
 
   it('should be possible to enable plugin using updateSettings', function () {
-
     handsontable({
       data: arrayOfObjects(),
       autoColumnSize: false
@@ -287,6 +443,6 @@ describe('AutoColumnSize', function () {
       renderer: spy
     });
 
-    expect(spy.mostRecentCall.args[5]).toEqual([{id: 1000}]);
+    expect(spy.calls.mostRecent().args[5]).toEqual([{id: 1000}]);
   });
 });

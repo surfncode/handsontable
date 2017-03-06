@@ -1,25 +1,23 @@
-
-import numeral from 'numeral';
-import {getEditor, registerEditor} from './../editors.js';
-import {TextEditor} from './textEditor.js';
-
+import numbro from 'numbro';
+import {registerEditor} from './../editors';
+import {TextEditor} from './textEditor';
 
 /**
  * @private
  * @editor NumericEditor
  * @class NumericEditor
- * @dependencies TextEditor numeral
+ * @dependencies TextEditor numbro
  */
 class NumericEditor extends TextEditor {
   /**
    * @param {*} initialValue
    */
   beginEditing(initialValue) {
-    if (typeof(initialValue) === 'undefined' && this.originalValue) {
+    if (typeof initialValue === 'undefined' && this.originalValue) {
       if (typeof this.cellProperties.language !== 'undefined') {
-        numeral.language(this.cellProperties.language);
+        numbro.culture(this.cellProperties.language);
       }
-      let decimalDelimiter = numeral.languageData().delimiters.decimal;
+      let decimalDelimiter = numbro.cultureData().delimiters.decimal;
       initialValue = ('' + this.originalValue).replace('.', decimalDelimiter);
     }
     super.beginEditing(initialValue);

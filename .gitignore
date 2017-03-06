@@ -3,11 +3,8 @@
 .idea
 _SpecRunner.html
 cars.sqlite
-dev.html
+dev*.html
+npm-debug.log
 
-#src/3rdparty/walkontable/test/jasmine/SpecRunner.html
-#test/jasmine/SpecRunner.html
-
-#dist/*
 !dist/README.md
 node_modules/

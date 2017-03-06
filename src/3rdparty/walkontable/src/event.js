@@ -1,24 +1,41 @@
+import {
+  closestDown,
+  hasClass,
+  isChildOf,
+  getParent,
+} from './../../../helpers/dom/element';
+import {partial} from './../../../helpers/function';
+import {isMobileBrowser} from './../../../helpers/browser';
+import {eventManager as eventManagerObject} from './../../../eventManager';
 
-import * as dom from './../../../dom.js';
-import {eventManager as eventManagerObject} from './../../../eventManager.js';
-
-
+/**
+ *
+ */
 function WalkontableEvent(instance) {
-  var that = this;
+  const that = this;
+  const eventManager = eventManagerObject(instance);
 
-  var eventManager = eventManagerObject(instance);
-
-  //reference to instance
   this.instance = instance;
 
   var dblClickOrigin = [null, null];
   this.dblClickTimeout = [null, null];
 
   var onMouseDown = function(event) {
-    var cell = that.parentCell(event.realTarget);
+    const activeElement = document.activeElement;
+    const getParentNode = partial(getParent, event.realTarget);
+    const realTarget = event.realTarget;
 
-    if (dom.hasClass(event.realTarget, 'corner')) {
-      that.instance.getSetting('onCellCornerMouseDown', event, event.realTarget);
+    // ignore focusable element from mouse down processing (https://github.com/handsontable/handsontable/issues/3555)
+    if (realTarget === activeElement ||
+        getParentNode(0) === activeElement ||
+        getParentNode(1) === activeElement) {
+      return;
+    }
+
+    var cell = that.parentCell(realTarget);
+
+    if (hasClass(realTarget, 'corner')) {
+      that.instance.getSetting('onCellCornerMouseDown', event, realTarget);
     } else if (cell.TD) {
       if (that.instance.hasSetting('onCellMouseDown')) {
         that.instance.getSetting('onCellMouseDown', event, cell.coords, cell.TD, that.instance);
@@ -51,7 +68,7 @@ function WalkontableEvent(instance) {
    var currentSelection
    , properTarget;
 
-   if(dom.hasClass(event.target,'SelectionHandle')) {
+   if(hasClass(event.target,'SelectionHandle')) {
    if(that.instance.selections[0].cellRange) {
    currentSelection = that.instance.selections[0].cellRange.highlight;
 
@@ -80,7 +97,7 @@ function WalkontableEvent(instance) {
     //  if(!that.instance.touchMoving) {
     //    that.instance.longTouch = true;
     //
-    //    var targetCoords = dom.offset(event.target);
+    //    var targetCoords = offset(event.target);
     //    var contextMenuEvent = new MouseEvent('contextmenu', {
     //      clientX: targetCoords.left + event.target.offsetWidth,
     //      clientY: targetCoords.top + event.target.offsetHeight,
@@ -96,7 +113,7 @@ function WalkontableEvent(instance) {
       if (that.instance.touchMoving === true) {
         that.instance.touchMoving = void 0;
 
-        eventManager.removeEventListener("touchmove", onTouchMove, false);
+        eventManager.removeEventListener('touchmove', onTouchMove, false);
 
         return;
       } else {
@@ -109,16 +126,17 @@ function WalkontableEvent(instance) {
     //eventManager.removeEventListener(that.instance.wtTable.holder, "mousedown", onMouseDown);
   };
 
-  var lastMouseOver;
   var onMouseOver = function(event) {
-    var table, td;
+    var table, td, mainWOT;
 
     if (that.instance.hasSetting('onCellMouseOver')) {
       table = that.instance.wtTable.TABLE;
-      td = dom.closest(event.realTarget, ['TD', 'TH'], table);
+      td = closestDown(event.realTarget, ['TD', 'TH'], table);
+      mainWOT = that.instance.cloneSource || that.instance;
 
-      if (td && td !== lastMouseOver && dom.isChildOf(td, table)) {
-        lastMouseOver = td;
+      if (td && td !== mainWOT.lastMouseOver && isChildOf(td, table)) {
+        mainWOT.lastMouseOver = td;
+
         that.instance.getSetting('onCellMouseOver', event, that.instance.wtTable.getCoords(td), td, that.instance);
       }
     }
@@ -128,8 +146,8 @@ function WalkontableEvent(instance) {
    var onMouseOut = function (event) {
    if (that.instance.hasSetting('onCellMouseOut')) {
    var TABLE = that.instance.wtTable.TABLE;
-   var TD = dom.closest(event.target, ['TD', 'TH'], TABLE);
-   if (TD && TD !== lastMouseOut && dom.isChildOf(TD, TABLE)) {
+   var TD = closest(event.target, ['TD', 'TH'], TABLE);
+   if (TD && TD !== lastMouseOut && isChildOf(TD, TABLE)) {
    lastMouseOut = TD;
    if (TD.nodeName === 'TD') {
    that.instance.getSetting('onCellMouseOut', event, that.instance.wtTable.getCoords(TD), TD);
@@ -143,56 +161,58 @@ function WalkontableEvent(instance) {
       var cell = that.parentCell(event.realTarget);
 
       if (cell.TD === dblClickOrigin[0] && cell.TD === dblClickOrigin[1]) {
-        if (dom.hasClass(event.realTarget, 'corner')) {
+        if (hasClass(event.realTarget, 'corner')) {
           that.instance.getSetting('onCellCornerDblClick', event, cell.coords, cell.TD, that.instance);
+
         } else {
           that.instance.getSetting('onCellDblClick', event, cell.coords, cell.TD, that.instance);
         }
 
         dblClickOrigin[0] = null;
         dblClickOrigin[1] = null;
+
       } else if (cell.TD === dblClickOrigin[0]) {
+        that.instance.getSetting('onCellMouseUp', event, cell.coords, cell.TD, that.instance);
+
         dblClickOrigin[1] = cell.TD;
         clearTimeout(that.dblClickTimeout[1]);
         that.dblClickTimeout[1] = setTimeout(function() {
           dblClickOrigin[1] = null;
         }, 500);
+
+      } else if (cell.TD && that.instance.hasSetting('onCellMouseUp')) {
+        that.instance.getSetting('onCellMouseUp', event, cell.coords, cell.TD, that.instance);
       }
     }
   };
-
 
   var onTouchEnd = function(event) {
     clearTimeout(longTouchTimeout);
     //that.instance.longTouch == void 0;
 
     event.preventDefault();
-
     onMouseUp(event);
 
     //eventManager.removeEventListener(that.instance.wtTable.holder, "mouseup", onMouseUp);
   };
 
   eventManager.addEventListener(this.instance.wtTable.holder, 'mousedown', onMouseDown);
-
   eventManager.addEventListener(this.instance.wtTable.TABLE, 'mouseover', onMouseOver);
-
   eventManager.addEventListener(this.instance.wtTable.holder, 'mouseup', onMouseUp);
 
-
   // check if full HOT instance, or detached WOT AND run on mobile device
-  if (this.instance.wtTable.holder.parentNode.parentNode && Handsontable.mobileBrowser && !that.instance.wtTable.isWorkingOnClone()) {
-    var classSelector = "." + this.instance.wtTable.holder.parentNode.className.split(" ").join(".");
+  if (this.instance.wtTable.holder.parentNode.parentNode && isMobileBrowser() && !that.instance.wtTable.isWorkingOnClone()) {
+    var classSelector = '.' + this.instance.wtTable.holder.parentNode.className.split(' ').join('.');
 
     eventManager.addEventListener(this.instance.wtTable.holder, 'touchstart', function(event) {
       that.instance.touchApplied = true;
-      if (dom.isChildOf(event.target, classSelector)) {
+      if (isChildOf(event.target, classSelector)) {
         onTouchStart.call(event.target, event);
       }
     });
     eventManager.addEventListener(this.instance.wtTable.holder, 'touchend', function(event) {
       that.instance.touchApplied = false;
-      if (dom.isChildOf(event.target, classSelector)) {
+      if (isChildOf(event.target, classSelector)) {
         onTouchEnd.call(event.target, event);
       }
     });
@@ -235,15 +255,17 @@ function WalkontableEvent(instance) {
 WalkontableEvent.prototype.parentCell = function(elem) {
   var cell = {};
   var TABLE = this.instance.wtTable.TABLE;
-  var TD = dom.closest(elem, ['TD', 'TH'], TABLE);
+  var TD = closestDown(elem, ['TD', 'TH'], TABLE);
 
-  if (TD && dom.isChildOf(TD, TABLE)) {
+  if (TD) {
     cell.coords = this.instance.wtTable.getCoords(TD);
     cell.TD = TD;
-  } else if (dom.hasClass(elem, 'wtBorder') && dom.hasClass(elem, 'current')) {
+
+  } else if (hasClass(elem, 'wtBorder') && hasClass(elem, 'current')) {
     cell.coords = this.instance.selections.current.cellRange.highlight; //selections.current is current selected cell
     cell.TD = this.instance.wtTable.getCell(cell.coords);
-  } else if (dom.hasClass(elem, 'wtBorder') && dom.hasClass(elem, 'area')) {
+
+  } else if (hasClass(elem, 'wtBorder') && hasClass(elem, 'area')) {
     if (this.instance.selections.area.cellRange) {
       cell.coords = this.instance.selections.area.cellRange.to; //selections.area is area selected cells
       cell.TD = this.instance.wtTable.getCell(cell.coords);

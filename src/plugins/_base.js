@@ -1,7 +1,11 @@
-
-import {defineGetter, objectEach, arrayEach} from './../helpers.js';
+import Handsontable from './../browser';
+import {defineGetter, objectEach} from './../helpers/object';
+import {arrayEach} from './../helpers/array';
+import {registerIdentity, getTranslator} from './../utils/recordTranslator';
+import {getRegistredPluginNames, getPluginName} from './../plugins';
 
 const privatePool = new WeakMap();
+let initializedPlugins = null;
 
 /**
  * @private
@@ -12,23 +16,47 @@ class BasePlugin {
    */
   constructor(hotInstance) {
     /**
-     * @type {Core} hot Handsontable instance.
+     * Handsontable instance.
+     *
+     * @type {Core}
      */
     defineGetter(this, 'hot', hotInstance, {
       writable: false
     });
-    privatePool.set(this, {hooks: {}});
-    this.enabled = false;
+    defineGetter(this, 't', getTranslator(hotInstance), {
+      writable: false
+    });
 
+    privatePool.set(this, {hooks: {}});
+    initializedPlugins = null;
+
+    this.pluginName = null;
+    this.pluginsInitializedCallbacks = [];
+    this.isPluginsReady = false;
+    this.enabled = false;
+    this.initialized = false;
+
+    this.hot.addHook('afterPluginsInitialized', () => this.onAfterPluginsInitialized());
     this.hot.addHook('afterUpdateSettings', () => this.onUpdateSettings());
     this.hot.addHook('beforeInit', () => this.init());
   }
 
   init() {
-    if (this.isEnabled) {
-      this[(this.isEnabled() ? 'enable' : 'disable') + 'Plugin']();
-      this.enabled = this.isEnabled();
+    this.pluginName = getPluginName(this.hot, this);
+
+    if (this.isEnabled && this.isEnabled()) {
+      this.enablePlugin();
     }
+    if (!initializedPlugins) {
+      initializedPlugins = getRegistredPluginNames(this.hot);
+    }
+    if (initializedPlugins.indexOf(this.pluginName) >= 0) {
+      initializedPlugins.splice(initializedPlugins.indexOf(this.pluginName), 1);
+    }
+    if (!initializedPlugins.length) {
+      this.hot.runHooks('afterPluginsInitialized');
+    }
+    this.initialized = true;
   }
 
   /**
@@ -85,6 +113,30 @@ class BasePlugin {
   }
 
   /**
+   * Register function which will be immediately called after all plugins initialized.
+   *
+   * @param {Function} callback
+   */
+  callOnPluginsReady(callback) {
+    if (this.isPluginsReady) {
+      callback();
+    } else {
+      this.pluginsInitializedCallbacks.push(callback);
+    }
+  }
+
+  /**
+   * On after plugins initialized listener.
+   *
+   * @private
+   */
+  onAfterPluginsInitialized() {
+    arrayEach(this.pluginsInitializedCallbacks, (callback) => callback());
+    this.pluginsInitializedCallbacks.length = 0;
+    this.isPluginsReady = true;
+  }
+
+  /**
    * On update settings listener.
    *
    * @private
@@ -97,19 +149,40 @@ class BasePlugin {
       if (!this.enabled && this.isEnabled()) {
         this.enablePlugin();
       }
+      if (this.enabled && this.isEnabled()) {
+        this.updatePlugin();
+      }
     }
   }
 
   /**
-   * Destroy plugin
+   * Updates the plugin to use the latest options you have specified.
+   *
+   * @private
+   */
+  updatePlugin() {
+
+  }
+
+  /**
+   * Destroy plugin.
    */
   destroy() {
     if (this.eventManager) {
       this.eventManager.destroy();
     }
     this.clearHooks();
+
+    objectEach(this, (value, property) => {
+      if (property !== 'hot' && property !== 't') {
+        this[property] = null;
+      }
+    });
+    delete this.t;
     delete this.hot;
   }
 }
 
 export default BasePlugin;
+
+Handsontable.plugins.BasePlugin = BasePlugin;

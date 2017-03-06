@@ -21,44 +21,9 @@
  *
  * See http://gruntjs.com/getting-started for more information about Grunt
  */
-var browsers = [
-  {
-    browserName: 'firefox',
-    platform: 'Windows 7'
-  },
-  {
-    browserName: 'chrome',
-    platform: 'Windows 7'
-  },
-  {
-    browserName: 'opera',
-    platform: 'Windows 7'
-  },
-  //{
-  //  browserName: 'internet explorer',
-  //  version: '8',
-  //  platform: 'Windows 7'
-  //},
-  //{
-  //  browserName: 'internet explorer',
-  //  version: '9',
-  //  platform: 'Windows 7'
-  //},
-  {
-    browserName: 'internet explorer',
-    version: '10',
-    platform: 'Windows 8'
-  }
-];
-
-module.exports = function (grunt) {
-
-  require('time-grunt')(grunt);
-  require('load-grunt-tasks')(grunt);
-
+module.exports = function(grunt) {
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
-    gitinfo: {},
 
     meta: {
       src: [
@@ -71,187 +36,8 @@ module.exports = function (grunt) {
         'src/3rdparty/*.js'
       ],
       walkontable: [
-        'src/3rdparty/walkontable/src/*.js'
-      ],
-      vendor: [
-        'lib/numeral/numeral.js'
+        'src/3rdparty/walkontable/src/**/*.js'
       ]
-    },
-
-    watch: {
-      options: {
-        livereload: true // works with Chrome LiveReload extension. See: https://github.com/gruntjs/grunt-contrib-watch
-      },
-      files: [
-        'src/**/*(*.js|*.css|*.html)',
-        '!src/3rdparty/walkontable/test/**/*',
-        'lib/**/*(*.js|*.css)'
-      ],
-      tasks: ['build-dev']
-    },
-
-    jasmine: {
-      handsontable: {
-        src: [
-          'dist/handsontable.js',
-          'demo/js/numeral.de-de.js',
-          'demo/js/backbone/lodash.underscore.js',
-          'demo/js/backbone/backbone.js',
-          'demo/js/backbone/backbone-relational/backbone-relational.js',
-          'demo/js/jquery-ui/js/jquery-ui.custom.js',
-          'plugins/removeRow/handsontable.removeRow.js'
-        ],
-        options: {
-          specs: [
-            'test/jasmine/spec/*Spec.js',
-            'test/jasmine/spec/!(mobile)*/*Spec.js',
-            'src/plugins/*/test/*.spec.js',
-            'plugins/*/test/*.spec.js',
-            'test/jasmine/spec/MemoryLeakTest.js'
-          ],
-          styles: [
-            'test/jasmine/css/SpecRunner.css',
-            'dist/handsontable.css',
-            'plugins/removeRow/handsontable.removeRow.css',
-            'demo/js/jquery-ui/css/ui-bootstrap/jquery-ui.custom.css',
-            'demo/js/pikaday/css/pikaday.css'
-          ],
-          vendor: [
-            'demo/js/jquery.min.js',
-            'lib/numeral/numeral.js',
-            'lib/autoResize/autoResize.js',
-            'lib/copyPaste/copyPaste.js',
-            'lib/SheetClip/SheetClip.js',
-            'lib/jsonpatch/json-patch-duplex.js',
-            'demo/js/moment/moment.js',
-            'demo/js/pikaday/pikaday.js',
-            'demo/js/ZeroClipboard.js',
-            'test/jasmine/lib/jasmine-extensions.js'
-          ],
-          helpers: [
-            'test/jasmine/spec/SpecHelper.js',
-            'test/jasmine/lib/nodeShim.js',
-            'test/jasmine/spec/test-init.js'
-          ],
-          outfile: 'test/jasmine/SpecRunner.html',
-          template: 'test/jasmine/templates/SpecRunner.tmpl',
-          keepRunner: true
-        }
-      },
-      walkontable: {
-        src: [
-          'dist/handsontable.js'
-        ],
-        options: {
-          specs: [
-            'src/3rdparty/walkontable/test/jasmine/spec/**/*.spec.js'
-          ],
-          styles: [
-            'src/3rdparty/walkontable/css/walkontable.css'
-          ],
-          vendor: [
-            'demo/js/jquery.min.js',
-            'lib/numeral/numeral.js',
-            'lib/autoResize/autoResize.js',
-            'lib/copyPaste/copyPaste.js',
-            'lib/SheetClip/SheetClip.js',
-            'lib/jsonpatch/json-patch-duplex.js',
-            'demo/js/moment/moment.js',
-            'demo/js/pikaday/pikaday.js',
-            'demo/js/ZeroClipboard.js',
-            'demo/js/numeral.de-de.js'
-          ],
-          helpers: [
-            'src/3rdparty/walkontable/test/jasmine/SpecHelper.js',
-            'test/jasmine/lib/nodeShim.js',
-            'src/3rdparty/walkontable/test/jasmine/test-init.js'
-
-          ],
-          outfile: 'src/3rdparty/walkontable/test/jasmine/SpecRunner.html',
-          template: 'test/jasmine/templates/SpecRunner.tmpl',
-          keepRunner: true
-        }
-      },
-      mobile: {
-        src: [
-          'dist/handsontable.js',
-          'demo/js/numeral.de-de.js',
-          'demo/js/backbone/lodash.underscore.js',
-          'demo/js/backbone/backbone.js',
-          'demo/js/backbone/backbone-relational/backbone-relational.js',
-          'demo/js/jquery-ui/js/jquery-ui.custom.js',
-          'plugins/removeRow/handsontable.removeRow.js'
-        ],
-        options: {
-          specs: [
-            'test/jasmine/spec/mobile/*Spec.js',
-            'src/plugins/*/test/mobile/*.spec.js'
-          ],
-          styles: [
-            'test/jasmine/css/SpecRunner.css',
-            'dist/handsontable.css',
-            'plugins/removeRow/handsontable.removeRow.css',
-            'demo/js/jquery-ui/css/ui-bootstrap/jquery-ui.custom.css',
-            'demo/js/pikaday/css/pikaday.css'
-          ],
-          vendor: [
-            'demo/js/jquery.min.js',
-            'lib/numeral/numeral.js',
-            'demo/js/ZeroClipboard.js',
-            'demo/js/moment/moment.js',
-            'demo/js/pikaday/pikaday.js',
-            'test/jasmine/lib/jasmine-extensions.js'
-          ],
-          helpers: [
-            'test/jasmine/spec/SpecHelper.js',
-            'test/jasmine/spec/MobileSpecHelper.js',
-            'test/jasmine/lib/nodeShim.js',
-            'test/jasmine/spec/test-init.js'
-          ],
-          outfile: 'test/jasmine/MobileSpecRunner.html',
-          template: 'test/jasmine/templates/SpecRunner.tmpl',
-          keepRunner: true
-        }
-      }
-    },
-
-    connect: {
-      server: {
-        options: {
-          port: 8080,
-          base: '.',
-          keepalive: true
-        }
-      },
-      sauce: {
-        options: {
-          port: 9999,
-          base: '.',
-          keepalive: false
-        }
-      }
-    },
-    'saucelabs-jasmine': {
-      handsontable: {
-        options: {
-          urls: ['http://localhost:9999/test/jasmine/SpecRunner.html'],
-//          build: process.env.TRAVIS_JOB_ID,
-          build: '<%= pkg.version %>-<%= gitinfo.local.branch.current.name %>',
-          concurrency: 3,
-          browsers: browsers,
-          testname: "Development test (Handsontable)"
-        }
-      },
-      walkontable: {
-        options: {
-          urls: ['http://localhost:9999/src/3rdparty/walkontable/test/jasmine/SpecRunner.html'],
-//          build: process.env.TRAVIS_JOB_ID,
-          build: '<%= pkg.version %>-<%= gitinfo.local.branch.current.name %>',
-          concurrency: 3,
-          browsers: browsers,
-          testname: "Development test (Walkontable)"
-        }
-      }
     },
 
     jshint: {
@@ -262,18 +48,144 @@ module.exports = function (grunt) {
       walkontable: '<%= meta.walkontable %>'
     },
 
+    jscs: {
+      handsontable: {
+        files: {
+          src: ['<%= meta.src %>', '!src/shims/classes.js']
+        }
+      },
+      walkontable: {
+        files: {
+          src: ['<%= meta.walkontable %>', '!src/shims/classes.js']
+        }
+      },
+      options: {
+        config: '.jscsrc',
+      }
+    },
+
+    jasmine: {
+      options: {
+        page: {
+          viewportSize: {
+            width: 1200,
+            height: 1000
+          }
+        },
+        outfile: 'test/SpecRunner.html',
+        display: 'short',
+        summary: true,
+        keepRunner: true,
+      },
+      handsontableStandalone: {
+        src: [
+          'dist/handsontable.js',
+        ],
+        options: {
+          specs: [
+            'test/spec/**/*.spec.js',
+            'test/spec/!(mobile)*/*.spec.js',
+            'src/plugins/*/test/*.spec.js',
+            'test/spec/MemoryLeakTest.js',
+          ],
+          styles: [
+            'test/lib/normalize.css',
+            'dist/pikaday/pikaday.css',
+            'dist/handsontable.css',
+          ],
+          vendor: [
+            'test/lib/jquery.min.js',
+            'test/lib/jquery.simulate.js',
+            'dist/numbro/numbro.js',
+            'dist/numbro/languages.js',
+            'dist/moment/moment.js',
+            'dist/pikaday/pikaday.js',
+            'dist/zeroclipboard/ZeroClipboard.js',
+            'demo/js/backbone/lodash.underscore.js',
+            'demo/js/backbone/backbone.js',
+          ],
+          helpers: [
+            'test/SpecHelper.js'
+          ],
+        }
+      },
+      handsontableFull: {
+        src: [
+          'dist/handsontable.full.min.js',
+          'dist/numbro/languages.js',
+        ],
+        options: {
+          specs: [
+            'test/spec/**/*.spec.js',
+            'test/spec/!(mobile)*/*.spec.js',
+            'src/plugins/*/test/*.spec.js',
+            'test/spec/MemoryLeakTest.js',
+          ],
+          styles: [
+            'test/lib/normalize.css',
+            'dist/pikaday/pikaday.css',
+            'dist/handsontable.full.min.css',
+          ],
+          vendor: [
+            'test/lib/jquery.min.js',
+            'test/lib/jquery.simulate.js',
+            'demo/js/backbone/lodash.underscore.js',
+            'demo/js/backbone/backbone.js',
+          ],
+          helpers: [
+            'test/SpecHelper.js'
+          ],
+        }
+      },
+      walkontable: {
+        src: [
+          'dist/handsontable.js'
+        ],
+        options: {
+          specs: [
+            'src/3rdparty/walkontable/test/spec/**/*.spec.js'
+          ],
+          styles: [
+            'src/3rdparty/walkontable/css/walkontable.css'
+          ],
+          vendor: [
+            'src/3rdparty/walkontable/test/lib/jquery.min.js',
+            'src/3rdparty/walkontable/test/lib/jquery.simulate.js',
+            'dist/numbro/numbro.js',
+            'dist/numbro/languages.js',
+            'dist/moment/moment.js',
+            'dist/pikaday/pikaday.js',
+            'dist/zeroclipboard/ZeroClipboard.js',
+          ],
+          helpers: [
+            'src/3rdparty/walkontable/test/SpecHelper.js'
+
+          ],
+          outfile: 'src/3rdparty/walkontable/test/SpecRunner.html',
+        }
+      },
+    },
+
     hotBuilder: {
       handsontable: {
         files: {
-          'dist': 'package.json'
+          dist: 'package.json'
         }
       },
       handsontableDev: {
         files: {
-          'dist': 'package.json'
+          dist: 'package.json'
         },
         options: {
           devMode: true
+        }
+      },
+      handsontableCustom: {
+        files: {
+          dist: 'package.json'
+        },
+        options: {
+          disableUI: false
         }
       },
       options: {
@@ -283,17 +195,17 @@ module.exports = function (grunt) {
   });
 
   // Default task.
-  grunt.registerTask('default', ['jshint', 'gitinfo', 'build']);
-  grunt.registerTask('build', ['hotBuilder:handsontable']);
+  grunt.registerTask('default', ['jscs', 'jshint', 'hotBuilder:handsontable']);
+  grunt.registerTask('build', ['default']);
   grunt.registerTask('build-dev', ['hotBuilder:handsontableDev']);
-  grunt.registerTask('test', ['default', 'jasmine:handsontable', 'jasmine:walkontable', 'jasmine:mobile:build']);
-  grunt.registerTask('test:handsontable', ['default', 'jasmine:handsontable']);
-  grunt.registerTask('test:walkontable', ['default', 'jasmine:walkontable']);
-  grunt.registerTask('test:mobile', ['default', 'jasmine:mobile:build']);
-  grunt.registerTask('sauce', ['default', 'connect:sauce', 'saucelabs-jasmine:walkontable', 'saucelabs-jasmine:handsontable']);
-  grunt.registerTask('sauce:handsontable', ['default', 'connect:sauce', 'saucelabs-jasmine:handsontable']);
-  grunt.registerTask('sauce:walkontable', ['default', 'connect:sauce', 'saucelabs-jasmine:walkontable']);
+  grunt.registerTask('build-custom', ['hotBuilder:handsontableCustom']);
+  grunt.registerTask('test', ['default', 'jasmine:walkontable', 'jasmine:handsontableStandalone', 'jasmine:handsontableFull']);
+  grunt.registerTask('test-handsontable', ['jasmine:handsontableStandalone']);
+  grunt.registerTask('test-handsontableFull', ['jasmine:handsontableFull']);
+  grunt.registerTask('test-walkontable', ['jasmine:walkontable']);
 
-  grunt.loadTasks('tasks');
+  grunt.loadNpmTasks('grunt-contrib-jasmine');
+  grunt.loadNpmTasks('grunt-contrib-jshint');
+  grunt.loadNpmTasks('grunt-jscs');
   grunt.loadNpmTasks('hot-builder');
 };

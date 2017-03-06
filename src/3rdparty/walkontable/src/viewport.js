@@ -1,9 +1,16 @@
-
-import * as dom from './../../../dom.js';
-import {EventManager} from './../../../eventManager.js';
-import {WalkontableViewportColumnsCalculator} from './calculator/viewportColumns.js';
-import {WalkontableViewportRowsCalculator} from './calculator/viewportRows.js';
-
+import Handsontable from './../../../browser';
+import {
+  getScrollbarWidth,
+  getScrollTop,
+  getStyle,
+  offset,
+  outerHeight,
+  outerWidth,
+} from './../../../helpers/dom/element';
+import {objectEach} from './../../../helpers/object';
+import {EventManager} from './../../../eventManager';
+import {WalkontableViewportColumnsCalculator} from './calculator/viewportColumns';
+import {WalkontableViewportRowsCalculator} from './calculator/viewportRows';
 
 /**
  * @class WalkontableViewport
@@ -14,12 +21,12 @@ class WalkontableViewport {
    */
   constructor(wotInstance) {
     this.wot = wotInstance;
-
     // legacy support
     this.instance = this.wot;
 
     this.oversizedRows = [];
     this.oversizedColumnHeaders = [];
+    this.hasOversizedColumnHeadersMarked = {};
     this.clientHeight = 0;
     this.containerWidth = NaN;
     this.rowHeaderWidth = NaN;
@@ -36,7 +43,6 @@ class WalkontableViewport {
    * @returns {number}
    */
   getWorkspaceHeight() {
-    // var scrollHandler = this.instance.wtOverlays.topOverlay.scrollHandler;
     let trimmingContainer = this.instance.wtOverlays.topOverlay.trimmingContainer;
     let elemHeight;
     let height = 0;
@@ -45,7 +51,7 @@ class WalkontableViewport {
       height = document.documentElement.clientHeight;
 
     } else {
-      elemHeight = dom.outerHeight(trimmingContainer);
+      elemHeight = outerHeight(trimmingContainer);
       // returns height without DIV scrollbar
       // juliend: bugfix too much tr
       // height = (elemHeight > 0 && trimmingContainer.clientHeight > 0) ? trimmingContainer.clientHeight : Infinity;
@@ -57,11 +63,16 @@ class WalkontableViewport {
 
   getWorkspaceWidth() {
     let width;
-    let totalColumns = this.instance.getSetting("totalColumns");
+    let totalColumns = this.wot.getSetting('totalColumns');
     let trimmingContainer = this.instance.wtOverlays.leftOverlay.trimmingContainer;
     let overflow;
-    let stretchSetting = this.instance.getSetting('stretchH');
+    let stretchSetting = this.wot.getSetting('stretchH');
     let docOffsetWidth = document.documentElement.offsetWidth;
+    let preventOverflow = this.wot.getSetting('preventOverflow');
+
+    if (preventOverflow) {
+      return outerWidth(this.instance.wtTable.wtRootElement);
+    }
 
     if (Handsontable.freezeOverlays) {
       width = Math.min(docOffsetWidth - this.getWorkspaceOffset().left, docOffsetWidth);
@@ -78,9 +89,9 @@ class WalkontableViewport {
     }
 
     if (trimmingContainer !== window) {
-      overflow = dom.getStyle(this.instance.wtOverlays.leftOverlay.trimmingContainer, 'overflow');
+      overflow = getStyle(this.instance.wtOverlays.leftOverlay.trimmingContainer, 'overflow');
 
-      if (overflow == "scroll" || overflow == "hidden" || overflow == "auto") {
+      if (overflow == 'scroll' || overflow == 'hidden' || overflow == 'auto') {
         // this is used in `scroll.html`
         // TODO test me
         return Math.max(width, trimmingContainer.clientWidth);
@@ -89,7 +100,7 @@ class WalkontableViewport {
 
     if (stretchSetting === 'none' || !stretchSetting) {
       // if no stretching is used, return the maximum used workspace width
-      return Math.max(width, dom.outerWidth(this.instance.wtTable.TABLE));
+      return Math.max(width, outerWidth(this.instance.wtTable.TABLE));
     } else {
       // if stretching is used, return the actual container width, so the columns can fit inside it
       return width;
@@ -124,7 +135,7 @@ class WalkontableViewport {
 
     while (from < length) {
       sum += this.wot.wtTable.getColumnWidth(from);
-      from ++;
+      from++;
     }
 
     return sum;
@@ -141,9 +152,9 @@ class WalkontableViewport {
     let fillWidth;
     let dummyElement;
 
-    dummyElement = document.createElement("DIV");
-    dummyElement.style.width = "100%";
-    dummyElement.style.height = "1px";
+    dummyElement = document.createElement('div');
+    dummyElement.style.width = '100%';
+    dummyElement.style.height = '1px';
     mainContainer.appendChild(dummyElement);
     fillWidth = dummyElement.offsetWidth;
 
@@ -157,23 +168,23 @@ class WalkontableViewport {
    * @returns {Number}
    */
   getWorkspaceOffset() {
-    return dom.offset(this.wot.wtTable.TABLE);
+    return offset(this.wot.wtTable.TABLE);
   }
 
   /**
    * @returns {Number}
    */
   getWorkspaceActualHeight() {
-    return dom.outerHeight(this.wot.wtTable.TABLE);
+    return outerHeight(this.wot.wtTable.TABLE);
   }
 
   /**
    * @returns {Number}
    */
   getWorkspaceActualWidth() {
-    return dom.outerWidth(this.wot.wtTable.TABLE) ||
-      dom.outerWidth(this.wot.wtTable.TBODY) ||
-      dom.outerWidth(this.wot.wtTable.THEAD); //IE8 reports 0 as <table> offsetWidth;
+    return outerWidth(this.wot.wtTable.TABLE) ||
+      outerWidth(this.wot.wtTable.TBODY) ||
+      outerWidth(this.wot.wtTable.THEAD); //IE8 reports 0 as <table> offsetWidth;
   }
 
   /**
@@ -181,7 +192,7 @@ class WalkontableViewport {
    */
   getColumnHeaderHeight() {
     if (isNaN(this.columnHeaderHeight)) {
-      this.columnHeaderHeight = dom.outerHeight(this.wot.wtTable.THEAD);
+      this.columnHeaderHeight = outerHeight(this.wot.wtTable.THEAD);
     }
 
     return this.columnHeaderHeight;
@@ -210,11 +221,22 @@ class WalkontableViewport {
    * @returns {Number}
    */
   getRowHeaderWidth() {
+    let rowHeadersHeightSetting = this.instance.getSetting('rowHeaderWidth');
+    let rowHeaders = this.instance.getSetting('rowHeaders');
+
+    if (rowHeadersHeightSetting) {
+      this.rowHeaderWidth = 0;
+
+      for (let i = 0, len = rowHeaders.length; i < len; i++) {
+        this.rowHeaderWidth += rowHeadersHeightSetting[i] || rowHeadersHeightSetting;
+      }
+    }
+
     if (this.wot.cloneSource) {
       return this.wot.cloneSource.wtViewport.getRowHeaderWidth();
     }
+
     if (isNaN(this.rowHeaderWidth)) {
-      let rowHeaders = this.instance.getSetting('rowHeaders');
 
       if (rowHeaders.length) {
         let TH = this.instance.wtTable.TABLE.querySelector('TH');
@@ -222,7 +244,7 @@ class WalkontableViewport {
 
         for (let i = 0, len = rowHeaders.length; i < len; i++) {
           if (TH) {
-            this.rowHeaderWidth += dom.outerWidth(TH);
+            this.rowHeaderWidth += outerWidth(TH);
             TH = TH.nextSibling;
 
           } else {
@@ -235,6 +257,8 @@ class WalkontableViewport {
         this.rowHeaderWidth = 0;
       }
     }
+
+    this.rowHeaderWidth = this.instance.getSetting('onModifyRowHeaderWidth', this.rowHeaderWidth) || this.rowHeaderWidth;
 
     return this.rowHeaderWidth;
   }
@@ -269,6 +293,10 @@ class WalkontableViewport {
     let height;
     let pos;
     let fixedRowsTop;
+    let scrollbarHeight;
+    let fixedRowsBottom;
+    let fixedRowsHeight;
+    let totalRows;
 
     this.rowHeaderWidth = NaN;
 
@@ -277,17 +305,31 @@ class WalkontableViewport {
     } else {
       height = this.getViewportHeight();
     }
-    pos = dom.getScrollTop(this.wot.wtOverlays.mainTableScrollableElement) - this.wot.wtOverlays.topOverlay.getTableParentOffset();
+    pos = this.wot.wtOverlays.topOverlay.getScrollPosition() - this.wot.wtOverlays.topOverlay.getTableParentOffset();
 
     if (pos < 0) {
       pos = 0;
     }
     fixedRowsTop = this.wot.getSetting('fixedRowsTop');
+    fixedRowsBottom = this.wot.getSetting('fixedRowsBottom');
+    totalRows = this.wot.getSetting('totalRows');
 
     if (fixedRowsTop) {
-      let fixedRowsHeight = this.wot.wtOverlays.topOverlay.sumCellSizes(0, fixedRowsTop);
+      fixedRowsHeight = this.wot.wtOverlays.topOverlay.sumCellSizes(0, fixedRowsTop);
       pos += fixedRowsHeight;
       height -= fixedRowsHeight;
+    }
+
+    if (fixedRowsBottom && this.wot.wtOverlays.bottomOverlay.clone) {
+      fixedRowsHeight = this.wot.wtOverlays.bottomOverlay.sumCellSizes(totalRows - fixedRowsBottom, totalRows);
+
+      height -= fixedRowsHeight;
+    }
+
+    if (this.wot.wtTable.holder.clientHeight === this.wot.wtTable.holder.offsetHeight) {
+      scrollbarHeight = 0;
+    } else {
+      scrollbarHeight = getScrollbarWidth();
     }
 
     return new WalkontableViewportRowsCalculator(
@@ -298,7 +340,8 @@ class WalkontableViewport {
         return this.wot.wtTable.getRowHeight(sourceRow);
       },
       visible ? null : this.wot.wtSettings.settings.viewportRowCalculatorOverride,
-      visible
+      visible,
+      scrollbarHeight
     );
   }
 
@@ -316,7 +359,7 @@ class WalkontableViewport {
 
     this.columnHeaderHeight = NaN;
 
-    pos = this.wot.wtOverlays.leftOverlay.getScrollPosition() - this.wot.wtOverlays.topOverlay.getTableParentOffset();
+    pos = this.wot.wtOverlays.leftOverlay.getScrollPosition() - this.wot.wtOverlays.leftOverlay.getTableParentOffset();
 
     if (pos < 0) {
       pos = 0;
@@ -329,7 +372,7 @@ class WalkontableViewport {
       width -= fixedColumnsWidth;
     }
     if (this.wot.wtTable.holder.clientWidth !== this.wot.wtTable.holder.offsetWidth) {
-      width -= dom.getScrollbarWidth();
+      width -= getScrollbarWidth();
     }
 
     return new WalkontableViewportColumnsCalculator(
@@ -341,7 +384,8 @@ class WalkontableViewport {
       },
       visible ? null : this.wot.wtSettings.settings.viewportColumnCalculatorOverride,
       visible,
-      this.wot.getSetting('stretchH')
+      this.wot.getSetting('stretchH'),
+      (stretchedWidth, column) => this.wot.getSetting('onBeforeStretchingColumnWidth', stretchedWidth, column)
     );
   }
 
@@ -438,6 +482,15 @@ class WalkontableViewport {
     }
 
     return false;
+  }
+
+  /**
+   * Resets values in keys of the hasOversizedColumnHeadersMarked object after updateSettings.
+   */
+  resetHasOversizedColumnHeadersMarked() {
+    objectEach(this.hasOversizedColumnHeadersMarked, function(value, key, object) {
+      object[key] = void 0;
+    });
   }
 }
 

@@ -1,6 +1,6 @@
-
-import * as helper from './../helpers.js';
-import {WalkontableCellCoords} from './../3rdparty/walkontable/src/cell/coords.js';
+import Handsontable from './../browser';
+import {stringify} from './../helpers/mixed';
+import {WalkontableCellCoords} from './../3rdparty/walkontable/src/cell/coords';
 
 export {BaseEditor};
 
@@ -58,6 +58,15 @@ BaseEditor.prototype.prepare = function(row, col, prop, td, originalValue, cellP
   this.originalValue = originalValue;
   this.cellProperties = cellProperties;
 
+  let invalidActiveElement = !document.activeElement || (document.activeElement && document.activeElement.nodeName === void 0);
+
+  if (this.instance.view.isMouseDown() && document.activeElement && document.activeElement !== document.body && !invalidActiveElement) {
+    document.activeElement.blur();
+
+  } else if (invalidActiveElement) { //IE
+    document.body.focus();
+  }
+
   this.state = Handsontable.EditorState.VIRGIN;
 };
 
@@ -80,28 +89,28 @@ BaseEditor.prototype.extend = function() {
   return inherit(Editor, baseClass);
 };
 
-BaseEditor.prototype.saveValue = function(val, ctrlDown) {
-  var sel, tmp;
+BaseEditor.prototype.saveValue = function(value, ctrlDown) {
+  let selection, tmp;
 
   // if ctrl+enter and multiple cells selected, behave like Excel (finish editing and apply to all cells)
   if (ctrlDown) {
-    sel = this.instance.getSelected();
+    selection = this.instance.getSelected();
 
-    if (sel[0] > sel[2]) {
-      tmp = sel[0];
-      sel[0] = sel[2];
-      sel[2] = tmp;
+    if (selection[0] > selection[2]) {
+      tmp = selection[0];
+      selection[0] = selection[2];
+      selection[2] = tmp;
     }
-    if (sel[1] > sel[3]) {
-      tmp = sel[1];
-      sel[1] = sel[3];
-      sel[3] = tmp;
+    if (selection[1] > selection[3]) {
+      tmp = selection[1];
+      selection[1] = selection[3];
+      selection[3] = tmp;
     }
-
-    this.instance.populateFromArray(sel[0], sel[1], val, sel[2], sel[3], 'edit');
   } else {
-    this.instance.populateFromArray(this.row, this.col, val, null, null, 'edit');
+    selection = [this.row, this.col, null, null];
   }
+
+  this.instance.populateFromArray(selection[0], selection[1], value, selection[2], selection[3], 'edit');
 };
 
 BaseEditor.prototype.beginEditing = function(initialValue, event) {
@@ -113,7 +122,7 @@ BaseEditor.prototype.beginEditing = function(initialValue, event) {
   this.state = Handsontable.EditorState.EDITING;
 
   initialValue = typeof initialValue == 'string' ? initialValue : this.originalValue;
-  this.setValue(helper.stringify(initialValue));
+  this.setValue(stringify(initialValue));
 
   this.open(event);
   this._opened = true;
@@ -121,6 +130,8 @@ BaseEditor.prototype.beginEditing = function(initialValue, event) {
 
   // only rerender the selections (FillHandle should disappear when beginediting is triggered)
   this.instance.view.render();
+
+  this.instance.runHooks('afterBeginEditing', this.row, this.col);
 };
 
 BaseEditor.prototype.finishEditing = function(restoreOriginalValue, ctrlDown, callback) {
@@ -134,7 +145,9 @@ BaseEditor.prototype.finishEditing = function(restoreOriginalValue, ctrlDown, ca
       if (previousCloseCallback) {
         previousCloseCallback(result);
       }
+
       callback(result);
+      _this.instance.view.render();
     };
   }
 
@@ -158,14 +171,16 @@ BaseEditor.prototype.finishEditing = function(restoreOriginalValue, ctrlDown, ca
       return;
     }
 
+    let value = this.getValue();
+
     if (this.instance.getSettings().trimWhitespace) {
-      // String.prototype.trim is defined in Walkontable polyfill.js
+      // We trim only string values
       val = [
-        // We trim only string values
-        [typeof this.getValue() === 'string' ? String.prototype.trim.call(this.getValue() || '') : this.getValue()]];
+        [typeof value === 'string' ? String.prototype.trim.call(value || '') : value]
+      ];
     } else {
       val = [
-        [this.getValue()]
+        [value]
       ];
     }
 
@@ -232,4 +247,29 @@ BaseEditor.prototype.isOpened = function() {
 
 BaseEditor.prototype.isWaiting = function() {
   return this.state === Handsontable.EditorState.WAITING;
+};
+
+BaseEditor.prototype.checkEditorSection = function() {
+  var totalRows = this.instance.countRows();
+  var section = '';
+
+  if (this.row < this.instance.getSettings().fixedRowsTop) {
+    if (this.col < this.instance.getSettings().fixedColumnsLeft) {
+      section = 'top-left-corner';
+    } else {
+      section = 'top';
+    }
+  } else if (this.instance.getSettings().fixedRowsBottom && this.row >= totalRows - this.instance.getSettings().fixedRowsBottom) {
+    if (this.col < this.instance.getSettings().fixedColumnsLeft) {
+      section = 'bottom-left-corner';
+    } else {
+      section = 'bottom';
+    }
+  } else {
+    if (this.col < this.instance.getSettings().fixedColumnsLeft) {
+      section = 'left';
+    }
+  }
+
+  return section;
 };

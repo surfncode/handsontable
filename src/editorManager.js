@@ -1,18 +1,17 @@
-
-import {WalkontableCellCoords} from './3rdparty/walkontable/src/cell/coords.js';
-import * as helper from './helpers.js';
-import * as dom from './dom.js';
-import {getEditor} from './editors.js';
-import {eventManager as eventManagerObject} from './eventManager.js';
+import Handsontable from './browser';
+import {WalkontableCellCoords} from './3rdparty/walkontable/src/cell/coords';
+import {KEY_CODES, isMetaKey, isCtrlKey} from './helpers/unicode';
+import {stopPropagation, stopImmediatePropagation, isImmediatePropagationStopped} from './helpers/dom/event';
+import {getEditor} from './editors';
+import {eventManager as eventManagerObject} from './eventManager';
 
 export {EditorManager};
 
 // support for older versions of Handsontable
 Handsontable.EditorManager = EditorManager;
 
-function EditorManager(instance, priv, selection){
+function EditorManager(instance, priv, selection) {
   var _this = this,
-    keyCodes = helper.keyCode,
     destroyed = false,
     eventManager,
     activeEditor;
@@ -24,7 +23,7 @@ function EditorManager(instance, priv, selection){
 
     if (shiftKey) {
       // move selection up
-      selection.transformStart(-enterMoves.row, - enterMoves.col);
+      selection.transformStart(-enterMoves.row, -enterMoves.col);
 
     } else {
       // move selection down (add a new row if needed)
@@ -60,9 +59,9 @@ function EditorManager(instance, priv, selection){
 
   function moveSelectionLeft(shiftKey) {
     if (shiftKey) {
-      selection.transformEnd(0, - 1);
+      selection.transformEnd(0, -1);
     } else {
-      selection.transformStart(0, - 1);
+      selection.transformStart(0, -1);
     }
   }
 
@@ -77,9 +76,7 @@ function EditorManager(instance, priv, selection){
     if (destroyed) {
       return;
     }
-    dom.enableImmediatePropagation(event);
-
-    if (event.isImmediatePropagationStopped()) {
+    if (isImmediatePropagationStopped(event)) {
       return;
     }
     priv.lastKeyCode = event.keyCode;
@@ -91,8 +88,8 @@ function EditorManager(instance, priv, selection){
     ctrlDown = (event.ctrlKey || event.metaKey) && !event.altKey;
 
     if (activeEditor && !activeEditor.isWaiting()) {
-      if (!helper.isMetaKey(event.keyCode) && !helper.isCtrlKey(event.keyCode) && !ctrlDown && !_this.isEditorOpened()) {
-        _this.openEditor("", event);
+      if (!isMetaKey(event.keyCode) && !isCtrlKey(event.keyCode) && !ctrlDown && !_this.isEditorOpened()) {
+        _this.openEditor('', event);
 
         return;
       }
@@ -101,56 +98,56 @@ function EditorManager(instance, priv, selection){
 
     switch (event.keyCode) {
 
-      case keyCodes.A:
+      case KEY_CODES.A:
         if (!_this.isEditorOpened() && ctrlDown) {
           selection.selectAll();
 
           event.preventDefault();
-          helper.stopPropagation(event);
+          stopPropagation(event);
         }
         break;
 
-      case keyCodes.ARROW_UP:
+      case KEY_CODES.ARROW_UP:
         if (_this.isEditorOpened() && !activeEditor.isWaiting()) {
           _this.closeEditorAndSaveChanges(ctrlDown);
         }
         moveSelectionUp(event.shiftKey);
 
         event.preventDefault();
-        helper.stopPropagation(event);
+        stopPropagation(event);
         break;
 
-      case keyCodes.ARROW_DOWN:
+      case KEY_CODES.ARROW_DOWN:
         if (_this.isEditorOpened() && !activeEditor.isWaiting()) {
           _this.closeEditorAndSaveChanges(ctrlDown);
         }
         moveSelectionDown(event.shiftKey);
 
         event.preventDefault();
-        helper.stopPropagation(event);
+        stopPropagation(event);
         break;
 
-      case keyCodes.ARROW_RIGHT:
+      case KEY_CODES.ARROW_RIGHT:
         if (_this.isEditorOpened() && !activeEditor.isWaiting()) {
           _this.closeEditorAndSaveChanges(ctrlDown);
         }
         moveSelectionRight(event.shiftKey);
 
         event.preventDefault();
-        helper.stopPropagation(event);
+        stopPropagation(event);
         break;
 
-      case keyCodes.ARROW_LEFT:
+      case KEY_CODES.ARROW_LEFT:
         if (_this.isEditorOpened() && !activeEditor.isWaiting()) {
           _this.closeEditorAndSaveChanges(ctrlDown);
         }
         moveSelectionLeft(event.shiftKey);
 
         event.preventDefault();
-        helper.stopPropagation(event);
+        stopPropagation(event);
         break;
 
-      case keyCodes.TAB:
+      case KEY_CODES.TAB:
         var tabMoves = typeof priv.settings.tabMoves === 'function' ? priv.settings.tabMoves(event) : priv.settings.tabMoves;
 
         if (event.shiftKey) {
@@ -161,27 +158,27 @@ function EditorManager(instance, priv, selection){
           selection.transformStart(tabMoves.row, tabMoves.col, true);
         }
         event.preventDefault();
-        helper.stopPropagation(event);
+        stopPropagation(event);
         break;
 
-      case keyCodes.BACKSPACE:
-      case keyCodes.DELETE:
+      case KEY_CODES.BACKSPACE:
+      case KEY_CODES.DELETE:
         selection.empty(event);
         _this.prepareEditor();
         event.preventDefault();
         break;
 
-      case keyCodes.F2:
+      case KEY_CODES.F2:
         /* F2 */
         _this.openEditor(null, event);
 
         if (activeEditor) {
           activeEditor.enableFullEditMode();
         }
-        event.preventDefault(); //prevent Opera from opening 'Go to Page dialog'
+        event.preventDefault(); // prevent Opera from opening 'Go to Page dialog'
         break;
 
-      case keyCodes.ENTER:
+      case KEY_CODES.ENTER:
         /* return/enter */
         if (_this.isEditorOpened()) {
 
@@ -201,47 +198,47 @@ function EditorManager(instance, priv, selection){
             moveSelectionAfterEnter(event.shiftKey);
           }
         }
-        event.preventDefault(); //don't add newline to field
-        event.stopImmediatePropagation(); //required by HandsontableEditor
+        event.preventDefault(); // don't add newline to field
+        stopImmediatePropagation(event); // required by HandsontableEditor
         break;
 
-      case keyCodes.ESCAPE:
+      case KEY_CODES.ESCAPE:
         if (_this.isEditorOpened()) {
           _this.closeEditorAndRestoreOriginalValue(ctrlDown);
         }
         event.preventDefault();
         break;
 
-      case keyCodes.HOME:
+      case KEY_CODES.HOME:
         if (event.ctrlKey || event.metaKey) {
           rangeModifier(new WalkontableCellCoords(0, priv.selRange.from.col));
         } else {
           rangeModifier(new WalkontableCellCoords(priv.selRange.from.row, 0));
         }
-        event.preventDefault(); //don't scroll the window
-        helper.stopPropagation(event);
+        event.preventDefault(); // don't scroll the window
+        stopPropagation(event);
         break;
 
-      case keyCodes.END:
+      case KEY_CODES.END:
         if (event.ctrlKey || event.metaKey) {
           rangeModifier(new WalkontableCellCoords(instance.countRows() - 1, priv.selRange.from.col));
         } else {
           rangeModifier(new WalkontableCellCoords(priv.selRange.from.row, instance.countCols() - 1));
         }
-        event.preventDefault(); //don't scroll the window
-        helper.stopPropagation(event);
+        event.preventDefault(); // don't scroll the window
+        stopPropagation(event);
         break;
 
-      case keyCodes.PAGE_UP:
+      case KEY_CODES.PAGE_UP:
         selection.transformStart(-instance.countVisibleRows(), 0);
-        event.preventDefault(); //don't page up the window
-        helper.stopPropagation(event);
+        event.preventDefault(); // don't page up the window
+        stopPropagation(event);
         break;
 
-      case keyCodes.PAGE_DOWN:
+      case KEY_CODES.PAGE_DOWN:
         selection.transformStart(instance.countVisibleRows(), 0);
-        event.preventDefault(); //don't page down the window
-        helper.stopPropagation(event);
+        event.preventDefault(); // don't page down the window
+        stopPropagation(event);
         break;
     }
   }
@@ -250,12 +247,14 @@ function EditorManager(instance, priv, selection){
     instance.addHook('afterDocumentKeyDown', onKeyDown);
 
     eventManager.addEventListener(document.documentElement, 'keydown', function(event) {
-      instance.runHooks('afterDocumentKeyDown', event);
+      if (!destroyed) {
+        instance.runHooks('afterDocumentKeyDown', event);
+      }
     });
 
     function onDblClick(event, coords, elem) {
       // may be TD or TH
-      if (elem.nodeName == "TD") {
+      if (elem.nodeName == 'TD') {
         _this.openEditor();
 
         if (activeEditor) {
@@ -314,7 +313,8 @@ function EditorManager(instance, priv, selection){
     col = priv.selRange.highlight.col;
     prop = instance.colToProp(col);
     td = instance.getCell(row, col);
-    originalValue = instance.getDataAtCell(row, col);
+
+    originalValue = instance.getSourceDataAtCell(instance.runHooks('modifyRow', row), col);
     cellProperties = instance.getCellMeta(row, col);
     editorClass = instance.getCellEditor(cellProperties);
 
@@ -346,13 +346,13 @@ function EditorManager(instance, priv, selection){
    * @param {String} initialValue
    * @param {DOMEvent} event
    */
-  this.openEditor = function (initialValue, event) {
+  this.openEditor = function(initialValue, event) {
     if (activeEditor && !activeEditor.cellProperties.readOnly) {
       activeEditor.beginEditing(initialValue, event);
     } else if (activeEditor && activeEditor.cellProperties.readOnly) {
 
       // move the selection after opening the editor with ENTER key
-      if (event && event.keyCode === helper.keyCode.ENTER) {
+      if (event && event.keyCode === KEY_CODES.ENTER) {
         moveSelectionAfterEnter();
       }
     }
@@ -368,12 +368,12 @@ function EditorManager(instance, priv, selection){
    * @param {Function} [callback]
    */
   this.closeEditor = function(restoreOriginalValue, ctrlDown, callback) {
-    if (!activeEditor) {
+    if (activeEditor) {
+      activeEditor.finishEditing(restoreOriginalValue, ctrlDown, callback);
+    } else {
       if (callback) {
         callback(false);
       }
-    } else {
-      activeEditor.finishEditing(restoreOriginalValue, ctrlDown, callback);
     }
   };
 

@@ -1,9 +1,8 @@
 
-import * as dom from './../../../dom.js';
-import {WalkontableBorder} from './border.js';
-import {WalkontableCellCoords} from './cell/coords.js';
-import {WalkontableCellRange} from './cell/range.js';
-
+import {addClass} from './../../../helpers/dom/element';
+import {WalkontableBorder} from './border';
+import {WalkontableCellCoords} from './cell/coords';
+import {WalkontableCellRange} from './cell/range';
 
 /**
  * @class WalkontableSelection
@@ -30,6 +29,7 @@ class WalkontableSelection {
     if (this.instanceBorders[wotInstance.guid]) {
       return this.instanceBorders[wotInstance.guid];
     }
+
     // where is this returned?
     this.instanceBorders[wotInstance.guid] = new WalkontableBorder(wotInstance, this.settings);
   }
@@ -102,7 +102,7 @@ class WalkontableSelection {
       topLeft.row,
       topLeft.col,
       bottomRight.row,
-      bottomRight.col
+      bottomRight.col,
     ];
   }
 
@@ -118,7 +118,7 @@ class WalkontableSelection {
     let TD = wotInstance.wtTable.getCell(new WalkontableCellCoords(sourceRow, sourceColumn));
 
     if (typeof TD === 'object') {
-      dom.addClass(TD, className);
+      addClass(TD, className);
     }
   }
 
@@ -148,8 +148,18 @@ class WalkontableSelection {
       if (sourceCol >= corners[1] && sourceCol <= corners[3]) {
         TH = wotInstance.wtTable.getColumnHeader(sourceCol);
 
-        if (TH && this.settings.highlightColumnClassName) {
-          dom.addClass(TH, this.settings.highlightColumnClassName);
+        if (TH) {
+          let newClasses = [];
+
+          if (this.settings.highlightHeaderClassName) {
+            newClasses.push(this.settings.highlightHeaderClassName);
+          }
+
+          if (this.settings.highlightColumnClassName) {
+            newClasses.push(this.settings.highlightColumnClassName);
+          }
+
+          addClass(TH, newClasses);
         }
       }
     }
@@ -160,8 +170,18 @@ class WalkontableSelection {
       if (sourceRow >= corners[0] && sourceRow <= corners[2]) {
         TH = wotInstance.wtTable.getRowHeader(sourceRow);
 
-        if (TH && this.settings.highlightRowClassName) {
-          dom.addClass(TH, this.settings.highlightRowClassName);
+        if (TH) {
+          let newClasses = [];
+
+          if (this.settings.highlightHeaderClassName) {
+            newClasses.push(this.settings.highlightHeaderClassName);
+          }
+
+          if (this.settings.highlightRowClassName) {
+            newClasses.push(this.settings.highlightRowClassName);
+          }
+
+          addClass(TH, newClasses);
         }
       }
 

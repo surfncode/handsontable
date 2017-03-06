@@ -1,8 +1,6 @@
-
-import {registerEditor} from './../editors.js';
-import {BaseEditor} from './_baseEditor.js';
-import * as dom from './../dom.js';
-
+import {registerEditor} from './../editors';
+import {BaseEditor} from './_baseEditor';
+import {hasClass} from './../helpers/dom/element';
 
 /**
  * @private
@@ -10,11 +8,14 @@ import * as dom from './../dom.js';
  * @class CheckboxEditor
  */
 class CheckboxEditor extends BaseEditor {
-  beginEditing() {
-    let checkbox = this.TD.querySelector('input[type="checkbox"]');
+  beginEditing(initialValue, event) {
+    // editorManager return double click event as undefined
+    if (event === void 0) {
+      let checkbox = this.TD.querySelector('input[type="checkbox"]');
 
-    if (!dom.hasClass(checkbox, 'htBadValue')) {
-      checkbox.click();
+      if (!hasClass(checkbox, 'htBadValue')) {
+        checkbox.click();
+      }
     }
   }
 

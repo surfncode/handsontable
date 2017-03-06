@@ -1,15 +1,13 @@
-
-import {deepExtend, stopPropagation, isMetaKey} from './../helpers.js';
-import {addClass, outerHeight} from './../dom.js';
-import {getEditor, registerEditor} from './../editors.js';
-import {TextEditor} from './textEditor.js';
-import {EventManager} from './../eventManager.js';
+import Handsontable from './../browser';
+import {addClass, outerHeight} from './../helpers/dom/element';
+import {deepExtend} from './../helpers/object';
+import {EventManager} from './../eventManager';
+import {getEditor, registerEditor} from './../editors';
+import {isMetaKey} from './../helpers/unicode';
+import {stopPropagation} from './../helpers/dom/event';
+import {TextEditor} from './textEditor';
 import moment from 'moment';
 import Pikaday from 'pikaday';
-
-
-Handsontable.editors = Handsontable.editors || {};
-Handsontable.editors.DateEditor = DateEditor;
 
 /**
  * @private
@@ -20,6 +18,7 @@ Handsontable.editors.DateEditor = DateEditor;
 class DateEditor extends TextEditor {
   /**
    * @param {Core} hotInstance Handsontable instance
+   * @private
    */
   constructor(hotInstance) {
     this.$datePicker = null;
@@ -34,11 +33,11 @@ class DateEditor extends TextEditor {
 
   init() {
     if (typeof moment !== 'function') {
-      throw new Error("You need to include moment.js to your project.");
+      throw new Error('You need to include moment.js to your project.');
     }
 
     if (typeof Pikaday !== 'function') {
-      throw new Error("You need to include Pikaday to your project.");
+      throw new Error('You need to include Pikaday to your project.');
     }
     super.init();
     this.instance.addHook('afterDestroy', () => {
@@ -161,6 +160,12 @@ class DateEditor extends TextEditor {
       if (moment(dateStr, dateFormat, true).isValid()) {
         this.$datePicker.setMoment(moment(dateStr, dateFormat), true);
       }
+
+      // workaround for date/time cells - pikaday resets the cell value to 12:00 AM by default, this will overwrite the value.
+      if (this.getValue() !== this.originalValue) {
+        this.setValue(this.originalValue);
+      }
+
       if (!isMeta && !isMouseDown) {
         this.setValue('');
       }
@@ -191,9 +196,9 @@ class DateEditor extends TextEditor {
   }
 
   adjustDatePickerPos() {
-     if(this.datePicker.getBoundingClientRect().bottom > this.instance.rootElement.getBoundingClientRect().bottom) {
-      this.datePicker.style.top=(parseInt(this.datePicker.style.top)-this.instance.getActiveEditor().TD.clientHeight-
-      this.datePicker.clientHeight)+"px";
+    if (this.datePicker.getBoundingClientRect().bottom > this.instance.rootElement.getBoundingClientRect().bottom) {
+      this.datePicker.style.top = ( parseInt(this.datePicker.style.top) - this.instance.getActiveEditor().TD.clientHeight -
+        this.datePicker.clientHeight ) + 'px';
     }
   }
 
@@ -253,5 +258,8 @@ class DateEditor extends TextEditor {
 }
 
 export {DateEditor};
+
+Handsontable.editors = Handsontable.editors || {};
+Handsontable.editors.DateEditor = DateEditor;
 
 registerEditor('date', DateEditor);

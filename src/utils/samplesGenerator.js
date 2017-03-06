@@ -1,9 +1,13 @@
-
-import {addClass, outerHeight, outerWidth} from './../dom.js';
-import {arrayEach, objectEach, rangeEach, stringify} from './../helpers.js';
+import Handsontable from './../browser';
+import {addClass, outerHeight, outerWidth} from './../helpers/dom/element';
+import {arrayEach} from './../helpers/array';
+import {objectEach, isObject} from './../helpers/object';
+import {rangeEach} from './../helpers/number';
+import {stringify} from './../helpers/mixed';
 
 /**
- * @private
+ * @class SamplesGenerator
+ * @util
  */
 class SamplesGenerator {
   /**
@@ -15,9 +19,6 @@ class SamplesGenerator {
     return 3;
   }
 
-  /**
-   * @param {Function} dataFactory Function which gave data to collect samples.
-   */
   constructor(dataFactory) {
     /**
      * Samples prepared for calculations.
@@ -32,6 +33,50 @@ class SamplesGenerator {
      * @type {Function}
      */
     this.dataFactory = dataFactory;
+    /**
+     * Custom number of samples to take of each value length.
+     *
+     * @type {Number}
+     * @default {null}
+     */
+    this.customSampleCount = null;
+    /**
+     * `true` if duplicate samples collection should be allowed, `false` otherwise.
+     *
+     * @type {Boolean}
+     * @default {false}
+     */
+    this.allowDuplicates = false;
+  }
+
+  /**
+   * Get the sample count for this instance.
+   *
+   * @returns {Number}
+   */
+  getSampleCount() {
+    if (this.customSampleCount) {
+      return this.customSampleCount;
+    }
+    return SamplesGenerator.SAMPLE_COUNT;
+  };
+
+  /**
+   * Set the sample count.
+   *
+   * @param {Number} sampleCount Number of samples to be collected.
+   */
+  setSampleCount(sampleCount) {
+    this.customSampleCount = sampleCount;
+  }
+
+  /**
+   * Set if the generator should accept duplicate values.
+   *
+   * @param {Boolean} allowDuplicates `true` to allow duplicate values.
+   */
+  setAllowDuplicates(allowDuplicates) {
+    this.allowDuplicates = allowDuplicates;
   }
 
   /**
@@ -89,6 +134,8 @@ class SamplesGenerator {
    */
   generateSample(type, range, specifierValue) {
     const samples = new Map();
+    let sampledValues = [];
+    let length;
 
     rangeEach(range.from, range.to, (index) => {
       let value;
@@ -102,22 +149,35 @@ class SamplesGenerator {
       } else {
         throw new Error('Unsupported sample type');
       }
-      if (!Array.isArray(value)) {
-        value = stringify(value);
-      }
-      let len = value.length;
 
-      if (!samples.has(len)) {
-        samples.set(len, {
-          needed: SamplesGenerator.SAMPLE_COUNT,
-          strings: []
+      if (isObject(value)) {
+        length = Object.keys(value).length;
+
+      } else if (Array.isArray(value)) {
+        length = value.length;
+
+      } else {
+        length = stringify(value).length;
+      }
+
+      if (!samples.has(length)) {
+        samples.set(length, {
+          needed: this.getSampleCount(),
+          strings: [],
         });
       }
-      let sample = samples.get(len);
+      let sample = samples.get(length);
 
       if (sample.needed) {
-        sample.strings.push({value, [type === 'row' ? 'col' : 'row']: index});
-        sample.needed--;
+        let duplicate = sampledValues.indexOf(value) > -1;
+
+        if (!duplicate || this.allowDuplicates) {
+          let computedKey = type === 'row' ? 'col' : 'row';
+
+          sample.strings.push({value, [computedKey]: index});
+          sampledValues.push(value);
+          sample.needed--;
+        }
       }
     });
 
@@ -128,5 +188,4 @@ class SamplesGenerator {
 export {SamplesGenerator};
 
 // temp for tests only!
-Handsontable.utils = Handsontable.utils || {};
 Handsontable.utils.SamplesGenerator = SamplesGenerator;

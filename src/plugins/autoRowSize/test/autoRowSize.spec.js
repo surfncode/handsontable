@@ -40,6 +40,159 @@ describe('AutoRowSize', function () {
     expect(height1).toBeLessThan(height2);
   });
 
+  it('should draw scrollbar correctly (proper height) after calculation when autoRowSize option is set (long text in row) #4000', function (done) {
+    var row = ["This is very long text which will break this cell text into two lines"];
+    var data = [];
+    var nrOfRows = 200;
+    var columnWidth = 100;
+
+    for (var i = 0; i < nrOfRows; i += 1) {
+      data.push(row);
+    }
+
+    handsontable({
+      data: data,
+      colWidths: function () {
+        return columnWidth;
+      },
+      autoRowSize: true
+    });
+
+    var oldHeight = spec().$container[0].scrollHeight;
+
+    setTimeout(function () {
+      var newHeight = spec().$container[0].scrollHeight;
+      expect(oldHeight).toBeLessThan(newHeight);
+      done();
+    }, 200);
+  });
+
+  describe('should draw scrollbar correctly (proper height) after calculation when autoRowSize option is set (`table td` element height set by CSS) #4000', function () {
+    var cellHeightInPx = 100;
+    var nrOfRows = null;
+    var nrOfColumns = 200, style;
+
+    var SYNC_CALCULATION_LIMIT = Handsontable.plugins.AutoRowSize.SYNC_CALCULATION_LIMIT;
+    var CALCULATION_STEP = Handsontable.plugins.AutoRowSize.CALCULATION_STEP;
+
+    beforeEach(function () {
+      if (!this.$container) {
+        this.$container = $('<div id="' + id + '"></div>').appendTo('body');
+      }
+
+      var css = '.handsontable table td { height: ' + cellHeightInPx + 'px !important }',
+        head = document.head;
+
+      style = document.createElement('style');
+      style.type = 'text/css';
+
+      if (style.styleSheet) {
+        style.styleSheet.cssText = css;
+      } else {
+        style.appendChild(document.createTextNode(css));
+      }
+
+      $(head).append(style);
+    });
+
+    afterEach(function () {
+      if (this.$container) {
+        destroy();
+        this.$container.remove();
+      }
+
+      if (style) {
+        $(style).remove();
+      }
+    });
+
+    it('(SYNC_CALCULATION_LIMIT - 1 rows)', function (done) {
+      nrOfRows = SYNC_CALCULATION_LIMIT - 1;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(nrOfRows, nrOfColumns),
+        autoRowSize: true
+      });
+
+      setTimeout(function () {
+        var newHeight = spec().$container[0].scrollHeight;
+
+        expect(newHeight).toEqual(((cellHeightInPx + 1) * nrOfRows + 1));
+        done();
+      }, 200);
+    });
+
+    it('(SYNC_CALCULATION_LIMIT + 1 rows)', function (done) {
+      nrOfRows = SYNC_CALCULATION_LIMIT + 1;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(nrOfRows, nrOfColumns),
+        autoRowSize: true
+      });
+
+      setTimeout(function () {
+        var newHeight = spec().$container[0].scrollHeight;
+
+        expect(newHeight).toEqual(((cellHeightInPx + 1) * nrOfRows + 1));
+        done();
+      }, 200);
+    });
+
+
+    it('(SYNC_CALCULATION_LIMIT + CALCULATION_STEP - 1 rows)', function (done) {
+
+      nrOfRows = SYNC_CALCULATION_LIMIT + CALCULATION_STEP - 1;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(nrOfRows, nrOfColumns),
+        autoRowSize: true
+      });
+
+      setTimeout(function () {
+        var newHeight = spec().$container[0].scrollHeight;
+
+        expect(newHeight).toEqual(((cellHeightInPx + 1) * nrOfRows + 1));
+        done();
+      }, 200);
+    });
+
+    it('(SYNC_CALCULATION_LIMIT + CALCULATION_STEP + 1 rows)', function (done) {
+
+      nrOfRows = SYNC_CALCULATION_LIMIT + CALCULATION_STEP + 1;
+
+      handsontable({
+        data: Handsontable.helper.createSpreadsheetData(nrOfRows, nrOfColumns),
+        autoRowSize: true
+      });
+
+      setTimeout(function () {
+        var newHeight = spec().$container[0].scrollHeight;
+
+        expect(newHeight).toEqual(((cellHeightInPx + 1) * nrOfRows + 1));
+        done();
+      }, 200);
+    });
+  });
+
+  it('should correctly detect row height when table is hidden on init (display: none)', function (done) {
+    this.$container.css('display', 'none');
+    var hot = handsontable({
+      data: arrayOfObjects(),
+      rowHeaders: true,
+      autoRowSize: true
+    });
+
+    setTimeout(function () {
+      spec().$container.css('display', 'block');
+      hot.render();
+
+      expect(rowHeight(spec().$container, 0)).toBe(24);
+      expect(rowHeight(spec().$container, 1)).toBe(43);
+      expect([106, 127]).toEqual(jasmine.arrayContaining([rowHeight(spec().$container, 2)]));
+      done();
+    }, 200);
+  });
+
   it('should be possible to disable plugin using updateSettings', function () {
     var hot = handsontable({
       data: arrayOfObjects()
@@ -68,9 +221,9 @@ describe('AutoRowSize', function () {
       autoRowSize: false
     });
 
-    var height0 = parseInt(getCell(0, 0).style.height || 0);
-    var height1 = parseInt(getCell(1, 0).style.height || 0);
-    var height2 = parseInt(getCell(2, 0).style.height || 0);
+    var height0 = parseInt(getCell(0, 0).style.height, 10);
+    var height1 = parseInt(getCell(1, 0).style.height, 10);
+    var height2 = parseInt(getCell(2, 0).style.height, 10);
 
     expect(height0).toEqual(height1);
     expect(height0).toEqual(height2);
@@ -80,9 +233,9 @@ describe('AutoRowSize', function () {
       autoRowSize: true
     });
 
-    height0 = parseInt(getCell(0, 0).style.height || 0);
-    height1 = parseInt(getCell(1, 0).style.height || 0);
-    height2 = parseInt(getCell(2, 0).style.height || 0);
+    height0 = parseInt(getCell(0, 0).style.height, 10);
+    height1 = parseInt(getCell(1, 0).style.height, 10);
+    height2 = parseInt(getCell(2, 0).style.height, 10);
 
     expect(height0).toBeLessThan(height1);
     expect(height1).toBeLessThan(height2);
@@ -101,20 +254,20 @@ describe('AutoRowSize', function () {
     var hot1 = $container1.handsontable('getInstance');
     var hot2 = $container2.handsontable('getInstance');
 
-    expect(parseInt(hot1.getCell(0, 0).style.height || 0)).toEqual(parseInt(hot2.getCell(0, 0).style.height || 0));
+    expect(parseInt(hot1.getCell(0, 0).style.height, 10)).toEqual(parseInt(hot2.getCell(0, 0).style.height, 10));
 
     $container1.addClass('big');
     hot1.render();
     hot2.render();
 
-    expect(parseInt(hot1.getCell(2, 0).style.height || 0)).toBeGreaterThan(parseInt(hot2.getCell(2, 0).style.height || 0));
+    expect(parseInt(hot1.getCell(2, 0).style.height, 10)).toBeGreaterThan(parseInt(hot2.getCell(2, 0).style.height, 10));
 
     $container1.removeClass('big');
     hot1.render();
     $container2.addClass('big');
     hot2.render();
 
-    expect(parseInt(hot1.getCell(2, 0).style.height || 0)).toBeLessThan(parseInt(hot2.getCell(2, 0).style.height || 0));
+    expect(parseInt(hot1.getCell(2, 0).style.height, 10)).toBeLessThan(parseInt(hot2.getCell(2, 0).style.height, 10));
 
     $style.remove();
     $container1.handsontable('destroy');
@@ -130,12 +283,12 @@ describe('AutoRowSize', function () {
       data: arrayOfObjects(),
       autoRowSize: true
     });
-    var height = parseInt(hot.getCell(2, 0).style.height || 0);
+    var height = parseInt(hot.getCell(2, 0).style.height, 10);
 
     this.$container.find('table').addClass('big-table');
     hot.getPlugin('autoRowSize').clearCache();
     render();
-    expect(parseInt(hot.getCell(2, 0).style.height || 0)).toBeGreaterThan(height);
+    expect(parseInt(hot.getCell(2, 0).style.height, 10)).toBeGreaterThan(height);
 
     $style.remove();
   });
@@ -152,11 +305,11 @@ describe('AutoRowSize', function () {
 
     setDataAtCell(0, 0, 'LongLongLongLong');
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(69); // -1px of cell border
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(69); // -1px of cell border
   });
 
   // Currently columns.height is not supported
-  xit('should not trigger autoColumnSize when column width is defined (through columns.width)', function () {
+  xit('should not trigger autoRowSize when column height is defined (through columns.height)', function () {
     var hot = handsontable({
       data: arrayOfObjects(),
       autoRowSize: true,
@@ -173,7 +326,7 @@ describe('AutoRowSize', function () {
 
     setDataAtCell(0, 0, 'LongLongLongLong');
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(69); // -1px of cell border
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(69); // -1px of cell border
   });
 
   it('should consider renderer that uses conditional formatting for specific row & column index', function () {
@@ -218,27 +371,27 @@ describe('AutoRowSize', function () {
       colHeaders: true
     });
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(22); // -1px of cell border
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(22); // -1px of cell border
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(22); // -1px of cell border
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(22); // -1px of cell border
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(22); // -1px of cell border
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBeInArray([22, 42]); // -1px of cell border
 
     resizeColumn.call(this, 1, 100);
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(22);
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(22);
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(42);
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(22);
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(42);
+    expect([63, 84]).toEqual(jasmine.arrayContaining([parseInt(hot.getCell(2, -1).style.height, 10)]));
 
     resizeColumn.call(this, 1, 50);
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(22);
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(42);
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(126);
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(22);
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(42);
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBe(126);
 
     resizeColumn.call(this, 1, 200);
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(22);
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(22);
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(22);
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(22);
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(22);
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBe(42);
   });
 
   it('should recalculate heights after column moved', function () {
@@ -251,17 +404,18 @@ describe('AutoRowSize', function () {
       colHeaders: true
     });
 
-    window.hot = hot;
+    var plugin = hot.getPlugin('manualColumnMove');
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(42); // -1px of cell border
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(105); // -1px of cell border
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(22); // -1px of cell border
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(42); // -1px of cell border
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(105); // -1px of cell border
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBeInArray([22, 42]); // -1px of cell border
 
-    moveSecondDisplayedColumnBeforeFirstColumn(getHtCore(), 2);
+    plugin.moveColumn(0, 2);
+    hot.render();
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(22);
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(42);
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(126);
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(22);
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(42);
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBe(126);
   });
 
   it('should recalculate heights with manualRowResize when changing text to multiline', function () {
@@ -274,15 +428,15 @@ describe('AutoRowSize', function () {
       colHeaders: true
     });
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(22); // -1px of cell border
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(49); // -1px of cell border
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(22); // -1px of cell border
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(22); // -1px of cell border
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(49); // -1px of cell border
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBeInArray([22, 42]); // -1px of cell border
 
     hot.setDataAtCell(1, 0, 'A\nB\nC\nD\nE');
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(22);
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(105);
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(22);
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(22);
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(105);
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBeInArray([22, 42]);
   });
 
   it('should recalculate heights after moved row', function () {
@@ -296,14 +450,34 @@ describe('AutoRowSize', function () {
       colHeaders: true
     });
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(22); // -1px of cell border
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(49); // -1px of cell border
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(22); // -1px of cell border
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(22); // -1px of cell border
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(49); // -1px of cell border
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBeInArray([22, 42]); // -1px of cell border
 
-    moveSecondDisplayedRowBeforeFirstRow(getHtCore(), 0);
+    var plugin = hot.getPlugin('manualRowMove');
+    plugin.moveRow(1, 0);
+    hot.render();
 
-    expect(parseInt(hot.getCell(0, -1).style.height || 0)).toBe(49);
-    expect(parseInt(hot.getCell(1, -1).style.height || 0)).toBe(22);
-    expect(parseInt(hot.getCell(2, -1).style.height || 0)).toBe(22);
+    expect(parseInt(hot.getCell(0, -1).style.height, 10)).toBe(49);
+    expect(parseInt(hot.getCell(1, -1).style.height, 10)).toBe(22);
+    expect(parseInt(hot.getCell(2, -1).style.height, 10)).toBeInArray([22, 42]); // -1px of cell border
+  });
+
+  it('should resize the column headers properly, according the their content sizes', function() {
+    var hot = handsontable({
+      data: Handsontable.helper.createSpreadsheetData(30, 30),
+      colHeaders: function(index) {
+        if (index === 22) {
+          return 'a<br>much<br>longer<br>label';
+        }
+        return 'test';
+      },
+      autoRowSize: true,
+      rowHeaders: true,
+      width: 300,
+      height: 300
+    });
+
+    expect(rowHeight(spec().$container, -1)).toBe(89);
   });
 });

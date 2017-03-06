@@ -2,7 +2,8 @@
  * Utility to register editors and common namespace for keeping reference to all editor classes
  */
 
-import * as helper from './helpers.js';
+import Handsontable from './browser';
+import {toUpperCaseFirst} from './helpers/string';
 
 export {registerEditor, getEditor, hasEditor, getEditorConstructor};
 
@@ -25,7 +26,7 @@ function RegisteredEditor(editorClass) {
     return editorClass;
   };
 
-  this.getInstance = function (hotInstance) {
+  this.getInstance = function(hotInstance) {
     if (!(hotInstance.guid in instances)) {
       instances[hotInstance.guid] = new Clazz(hotInstance);
     }
@@ -44,7 +45,7 @@ function registerEditor(editorName, editorClass) {
 
   if (typeof editorName === 'string') {
     registeredEditorNames[editorName] = editor;
-    Handsontable.editors[helper.toUpperCaseFirst(editorName) + 'Editor'] = editorClass;
+    Handsontable.editors[toUpperCaseFirst(editorName) + 'Editor'] = editorClass;
   }
   registeredEditorClasses.set(editorClass, editor);
 }
@@ -64,11 +65,11 @@ function getEditor(editorName, hotInstance) {
       registerEditor(null, editorName);
     }
     editor = registeredEditorClasses.get(editorName);
-  }
-  else if (typeof editorName == 'string') {
+
+  } else if (typeof editorName == 'string') {
     editor = registeredEditorNames[editorName];
-  }
-  else {
+
+  } else {
     throw Error('Only strings and functions can be passed as "editor" parameter ');
   }
 
@@ -90,8 +91,8 @@ function getEditorConstructor(editorName) {
 
   if (typeof editorName == 'string') {
     editor = registeredEditorNames[editorName];
-  }
-  else {
+
+  } else {
     throw Error('Only strings and functions can be passed as "editor" parameter ');
   }
 

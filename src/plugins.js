@@ -1,8 +1,9 @@
 /**
  * Utility to register plugins and common namespace for keeping reference to all plugins classes
  */
-
-export {registerPlugin, getPlugin};
+import Handsontable from './browser';
+import {objectEach} from './helpers/object';
+import {toUpperCaseFirst} from './helpers/string';
 
 const registeredPlugins = new WeakMap();
 
@@ -13,10 +14,12 @@ const registeredPlugins = new WeakMap();
  * @param {Function} PluginClass
  */
 function registerPlugin(pluginName, PluginClass) {
-  Handsontable.hooks.add('construct', function () {
-    var holder;
+  pluginName = toUpperCaseFirst(pluginName);
 
-    pluginName = pluginName.toLowerCase();
+  Handsontable.plugins[pluginName] = PluginClass;
+
+  Handsontable.hooks.add('construct', function() {
+    let holder;
 
     if (!registeredPlugins.has(this)) {
       registeredPlugins.set(this, {});
@@ -27,17 +30,11 @@ function registerPlugin(pluginName, PluginClass) {
       holder[pluginName] = new PluginClass(this);
     }
   });
-  Handsontable.hooks.add('afterDestroy', function () {
-    var i, pluginsHolder;
-
+  Handsontable.hooks.add('afterDestroy', function() {
     if (registeredPlugins.has(this)) {
-      pluginsHolder = registeredPlugins.get(this);
+      let pluginsHolder = registeredPlugins.get(this);
 
-      for (i in pluginsHolder) {
-        if (pluginsHolder.hasOwnProperty(i)) {
-          pluginsHolder[i].destroy();
-        }
-      }
+      objectEach(pluginsHolder, (plugin) => plugin.destroy());
       registeredPlugins.delete(this);
     }
   });
@@ -49,10 +46,10 @@ function registerPlugin(pluginName, PluginClass) {
  * @returns {Function} pluginClass Returns plugin instance if exists or `undefined` if not exists.
  */
 function getPlugin(instance, pluginName) {
-  if (typeof pluginName != 'string'){
+  if (typeof pluginName != 'string') {
     throw Error('Only strings can be passed as "plugin" parameter');
   }
-  let _pluginName = pluginName.toLowerCase();
+  let _pluginName = toUpperCaseFirst(pluginName);
 
   if (!registeredPlugins.has(instance) || !registeredPlugins.get(instance)[_pluginName]) {
     return void 0;
@@ -60,3 +57,36 @@ function getPlugin(instance, pluginName) {
 
   return registeredPlugins.get(instance)[_pluginName];
 }
+
+/**
+ * Get all registred plugins names for concrete Handsontable instance.
+ *
+ * @param {Object} hotInstance
+ * @returns {Array}
+ */
+function getRegistredPluginNames(hotInstance) {
+  return registeredPlugins.has(hotInstance) ? Object.keys(registeredPlugins.get(hotInstance)) : [];
+}
+
+/**
+ * Get plugin name.
+ *
+ * @param {Object} hotInstance
+ * @param {Object} plugin
+ * @returns {String|null}
+ */
+function getPluginName(hotInstance, plugin) {
+  let pluginName = null;
+
+  if (registeredPlugins.has(hotInstance)) {
+    objectEach(registeredPlugins.get(hotInstance), (pluginInstance, name) => {
+      if (pluginInstance === plugin) {
+        pluginName = name;
+      }
+    });
+  }
+
+  return pluginName;
+}
+
+export {registerPlugin, getPlugin, getRegistredPluginNames, getPluginName};

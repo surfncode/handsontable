@@ -1,29 +1,48 @@
+import BasePlugin from './../_base';
+import {arrayEach, arrayFilter, arrayReduce, arrayMap} from './../../helpers/array';
+import {cancelAnimationFrame, requestAnimationFrame} from './../../helpers/feature';
+import {isVisible} from './../../helpers/dom/element';
+import {GhostTable} from './../../utils/ghostTable';
+import {isObject, objectEach} from './../../helpers/object';
+import {valueAccordingPercent, rangeEach} from './../../helpers/number';
+import {registerPlugin} from './../../plugins';
+import {SamplesGenerator} from './../../utils/samplesGenerator';
+import {isPercentValue} from './../../helpers/string';
+import {WalkontableViewportColumnsCalculator} from './../../3rdparty/walkontable/src/calculator/viewportColumns';
 
-import BasePlugin from './../_base.js';
-import {arrayEach, arrayFilter, objectEach, rangeEach, requestAnimationFrame, cancelAnimationFrame, isObject,
-        isPercentValue, valueAccordingPercent} from './../../helpers.js';
-import {GhostTable} from './../../utils/ghostTable.js';
-import {registerPlugin} from './../../plugins.js';
-import {SamplesGenerator} from './../../utils/samplesGenerator.js';
-import {WalkontableViewportColumnsCalculator} from './../../3rdparty/walkontable/src/calculator/viewportColumns.js';
+const privatePool = new WeakMap();
 
 /**
  * @plugin AutoColumnSize
  *
  * @description
- * This plugin allows to set columns width related to the widest cell in column.
+ * This plugin allows to set column widths based on their widest cells.
  *
- * Default value is `undefined` which is the same effect as `true`. Enable this plugin can decrease performance.
+ * By default, the plugin is declared as `undefined`, which makes it enabled (same as if it was declared as `true`).
+ * Enabling this plugin may decrease the overall table performance, as it needs to calculate the widths of all cells to
+ * resize the columns accordingly.
+ * If you experience problems with the performance, try turning this feature off and declaring the column widths manually.
  *
- * Column width calculations are divided into sync and async part. Each of this part has own advantages and
- * disadvantages. Synchronous counting is faster but it blocks browser UI and asynchronous is slower but it does not
- * block Browser UI.
+ * Column width calculations are divided into sync and async part. Each of this parts has their own advantages and
+ * disadvantages. Synchronous calculations are faster but they block the browser UI, while the slower asynchronous operations don't
+ * block the browser UI.
+ *
+ * To configure the sync/async distribution, you can pass an absolute value (number of columns) or a percentage value to a config object:
+ * ```js
+ * ...
+ * // as a number (300 columns in sync, rest async)
+ * autoColumnSize: {syncLimit: 300},
+ * ...
+ *
+ * ...
+ * // as a string (percent)
+ * autoColumnSize: {syncLimit: '40%'},
+ * ...
+ * ```
  *
  * To configure this plugin see {@link Options#autoColumnSize}.
  *
- *
  * @example
- *
  * ```js
  * ...
  * var hot = new Handsontable(document.getElementById('example'), {
@@ -45,12 +64,23 @@ class AutoColumnSize extends BasePlugin {
   static get CALCULATION_STEP() {
     return 50;
   }
+
   static get SYNC_CALCULATION_LIMIT() {
     return 50;
   }
 
   constructor(hotInstance) {
     super(hotInstance);
+    privatePool.set(this, {
+      /**
+       * Cached column header names. It is used to diff current column headers with previous state and detect which
+       * columns width should be updated.
+       *
+       * @private
+       * @type {Array}
+       */
+      cachedColumnHeaders: [],
+    });
     /**
      * Cached columns widths.
      *
@@ -58,25 +88,32 @@ class AutoColumnSize extends BasePlugin {
      */
     this.widths = [];
     /**
-     * Instance of GhostTable for rows and columns size calculations.
+     * Instance of {@link GhostTable} for rows and columns size calculations.
      *
      * @type {GhostTable}
      */
     this.ghostTable = new GhostTable(this.hot);
     /**
-     * Instance of SamplesGenerator for generating samples necessary for columns width calculations.
+     * Instance of {@link SamplesGenerator} for generating samples necessary for columns width calculations.
      *
      * @type {SamplesGenerator}
      */
     this.samplesGenerator = new SamplesGenerator((row, col) => this.hot.getDataAtCell(row, col));
     /**
+     * `true` only if the first calculation was performed
+     *
      * @type {Boolean}
      */
     this.firstCalculation = true;
     /**
+     * `true` if the size calculation is in progress.
+     *
      * @type {Boolean}
      */
     this.inProgress = false;
+
+    // moved to constructor to allow auto-sizing the columns when the plugin is disabled
+    this.addHook('beforeColumnResize', (col, size, isDblClick) => this.onBeforeColumnResize(col, size, isDblClick));
   }
 
   /**
@@ -95,16 +132,43 @@ class AutoColumnSize extends BasePlugin {
     if (this.enabled) {
       return;
     }
+
+    let setting = this.hot.getSettings().autoColumnSize;
+
+    if (setting && setting.useHeaders != null) {
+      this.ghostTable.setSetting('useHeaders', setting.useHeaders);
+    }
+
     this.addHook('afterLoadData', () => this.onAfterLoadData());
     this.addHook('beforeChange', (changes) => this.onBeforeChange(changes));
-    this.addHook('beforeColumnResize', (col, size, isDblClick) => this.onBeforeColumnResize(col, size, isDblClick));
+
     this.addHook('beforeRender', (force) => this.onBeforeRender(force));
     this.addHook('modifyColWidth', (width, col) => this.getColumnWidth(col, width));
+    this.addHook('afterInit', () => this.onAfterInit());
     super.enablePlugin();
   }
 
   /**
-   * Calculate columns width.
+   * Update plugin state.
+   */
+  updatePlugin() {
+    const changedColumns = this.findColumnsWhereHeaderWasChanged();
+
+    if (changedColumns.length) {
+      this.clearCache(changedColumns);
+    }
+    super.updatePlugin();
+  }
+
+  /**
+   * Disable plugin for this Handsontable instance.
+   */
+  disablePlugin() {
+    super.disablePlugin();
+  }
+
+  /**
+   * Calculate a columns width.
    *
    * @param {Number|Object} colRange Column range object.
    * @param {Number|Object} rowRange Row range object.
@@ -117,6 +181,7 @@ class AutoColumnSize extends BasePlugin {
     if (typeof rowRange === 'number') {
       rowRange = {from: rowRange, to: rowRange};
     }
+
     rangeEach(colRange.from, colRange.to, (col) => {
       if (force || (this.widths[col] === void 0 && !this.hot._getColWidthFromSettings(col))) {
         const samples = this.samplesGenerator.generateColumnSamples(col, rowRange);
@@ -151,7 +216,12 @@ class AutoColumnSize extends BasePlugin {
 
         return;
       }
-      this.calculateColumnsWidth({from: current, to: Math.min(current + AutoColumnSize.CALCULATION_STEP, length)}, rowRange);
+
+      this.calculateColumnsWidth({
+        from: current,
+        to: Math.min(current + AutoColumnSize.CALCULATION_STEP, length)
+      }, rowRange);
+
       current = current + AutoColumnSize.CALCULATION_STEP + 1;
 
       if (current < length) {
@@ -183,15 +253,36 @@ class AutoColumnSize extends BasePlugin {
   }
 
   /**
-   * Recalculate all columns width (overwrite cache values).
+   * Set the sampling options.
+   *
+   * @private
    */
-  recalculateAllColumnsWidth() {
-    this.clearCache();
-    this.calculateAllColumnsWidth();
+  setSamplingOptions() {
+    let setting = this.hot.getSettings().autoColumnSize;
+    let samplingRatio = setting && setting.hasOwnProperty('samplingRatio') ? this.hot.getSettings().autoColumnSize.samplingRatio : void 0;
+    let allowSampleDuplicates = setting && setting.hasOwnProperty('allowSampleDuplicates') ? this.hot.getSettings().autoColumnSize.allowSampleDuplicates : void 0;
+
+    if (samplingRatio && !isNaN(samplingRatio)) {
+      this.samplesGenerator.setSampleCount(parseInt(samplingRatio, 10));
+    }
+
+    if (allowSampleDuplicates) {
+      this.samplesGenerator.setAllowDuplicates(allowSampleDuplicates);
+    }
   }
 
   /**
-   * Get value which tells how much columns will be calculated synchronously. Rest columns will be calculated asynchronously.
+   * Recalculate all columns width (overwrite cache values).
+   */
+  recalculateAllColumnsWidth() {
+    if (this.hot.view && isVisible(this.hot.view.wt.wtTable.TABLE)) {
+      this.clearCache();
+      this.calculateAllColumnsWidth();
+    }
+  }
+
+  /**
+   * Get value which tells how many columns should be calculated synchronously. Rest of the columns will be calculated asynchronously.
    *
    * @returns {Number}
    */
@@ -214,10 +305,10 @@ class AutoColumnSize extends BasePlugin {
   }
 
   /**
-   * Get calculated column height.
+   * Get the calculated column width.
    *
    * @param {Number} col Column index.
-   * @param {Number} [defaultWidth] Default column width. It will be pick up if no calculated width found.
+   * @param {Number} [defaultWidth] Default column width. It will be picked up if no calculated width found.
    * @param {Boolean} [keepMinimum=true] If `true` then returned value won't be smaller then 50 (default column width).
    * @returns {Number}
    */
@@ -236,7 +327,7 @@ class AutoColumnSize extends BasePlugin {
   }
 
   /**
-   * Get first visible column.
+   * Get the first visible column.
    *
    * @returns {Number} Returns column index or -1 if table is not rendered.
    */
@@ -254,7 +345,7 @@ class AutoColumnSize extends BasePlugin {
   }
 
   /**
-   * Get last visible column.
+   * Get the last visible column.
    *
    * @returns {Number} Returns column index or -1 if table is not rendered.
    */
@@ -272,10 +363,44 @@ class AutoColumnSize extends BasePlugin {
   }
 
   /**
-   * Clear cached widths.
+   * Collects all columns which titles has been changed in comparison to the previous state.
+   *
+   * @returns {Array} It returns an array of physical column indexes.
    */
-  clearCache() {
-    this.widths.length = 0;
+  findColumnsWhereHeaderWasChanged() {
+    const columnHeaders = this.hot.getColHeader();
+    const {cachedColumnHeaders} = privatePool.get(this);
+
+    const changedColumns = arrayReduce(columnHeaders, (acc, columnTitle, physicalColumn) => {
+      const cachedColumnsLength = cachedColumnHeaders.length;
+
+      if (cachedColumnsLength - 1 < physicalColumn || cachedColumnHeaders[physicalColumn] !== columnTitle) {
+        acc.push(physicalColumn);
+      }
+      if (cachedColumnsLength - 1 < physicalColumn) {
+        cachedColumnHeaders.push(columnTitle);
+      } else {
+        cachedColumnHeaders[physicalColumn] = columnTitle;
+      }
+
+      return acc;
+    }, []);
+
+    return changedColumns;
+  }
+
+  /**
+   * Clear cache of calculated column widths. If you want to clear only selected columns pass an array with their indexes.
+   * Otherwise whole cache will be cleared.
+   *
+   * @param {Array} [columns=[]] List of column indexes (physical indexes) to clear.
+   */
+  clearCache(columns = []) {
+    if (columns.length) {
+      arrayEach(columns, (physicalIndex) => this.widths[physicalIndex] = void 0);
+    } else {
+      this.widths.length = 0;
+    }
   }
 
   /**
@@ -293,7 +418,14 @@ class AutoColumnSize extends BasePlugin {
    * @private
    */
   onBeforeRender() {
-    let force = this.hot.renderCall;
+    const force = this.hot.renderCall;
+    const rowsCount = this.hot.countRows();
+
+    // Keep last column widths unchanged for situation when all rows was deleted or trimmed (pro #6)
+    if (!rowsCount) {
+      return;
+    }
+
     this.calculateColumnsWidth({from: this.getFirstVisibleColumn(), to: this.getLastVisibleColumn()}, void 0, force);
 
     if (this.isNeedRecalculate() && !this.inProgress) {
@@ -326,7 +458,9 @@ class AutoColumnSize extends BasePlugin {
    * @param {Array} changes
    */
   onBeforeChange(changes) {
-    arrayEach(changes, (data) => this.widths[data[1]] = void 0);
+    const changedColumns = arrayMap(changes, ([row, column]) => this.hot.propToCol(column));
+
+    this.clearCache(changedColumns);
   }
 
   /**
@@ -345,6 +479,15 @@ class AutoColumnSize extends BasePlugin {
     }
 
     return size;
+  }
+
+  /**
+   * On after Handsontable init fill plugin with all necessary values.
+   *
+   * @private
+   */
+  onAfterInit() {
+    privatePool.get(this).cachedColumnHeaders = this.hot.getColHeader();
   }
 
   /**

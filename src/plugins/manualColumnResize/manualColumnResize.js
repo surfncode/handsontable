@@ -1,262 +1,518 @@
+import Handsontable from './../../browser';
+import BasePlugin from './../_base.js';
+import {addClass, hasClass, removeClass, outerHeight} from './../../helpers/dom/element';
+import {eventManager as eventManagerObject} from './../../eventManager';
+import {pageX, pageY} from './../../helpers/dom/event';
+import {arrayEach} from './../../helpers/array';
+import {rangeEach} from './../../helpers/number';
+import {registerPlugin} from './../../plugins';
 
-import * as helper from './../../helpers.js';
-import * as dom from './../../dom.js';
-import {eventManager as eventManagerObject} from './../../eventManager.js';
-import {registerPlugin} from './../../plugins.js';
-
-export {ManualColumnResize};
-
-//registerPlugin('manualColumnResize', ManualColumnResize);
+// Developer note! Whenever you make a change in this file, make an analogous change in manualRowResize.js
 
 /**
- * HandsontableManualColumnResize
+ * @description
+ * ManualColumnResize Plugin.
  *
  * Has 2 UI components:
- * - handle - the draggable element that sets the desired width of the column
- * - guide - the helper guide that shows the desired width as a vertical guide
+ * - handle - the draggable element that sets the desired width of the column.
+ * - guide - the helper guide that shows the desired width as a vertical guide.
  *
- * Warning! Whenever you make a change in this file, make an analogous change in manualRowResize.js
- *
- * @private
- * @class ManualColumnResize
  * @plugin ManualColumnResize
  */
-function ManualColumnResize() {
-  var currentTH, currentCol, currentWidth, instance, newSize, startX, startWidth, startOffset, handle = document.createElement('DIV'),
-    guide = document.createElement('DIV'),
-    eventManager = eventManagerObject(this);
+class ManualColumnResize extends BasePlugin {
 
+  constructor(hotInstance) {
+    super(hotInstance);
 
-  handle.className = 'manualColumnResizer';
-  guide.className = 'manualColumnResizerGuide';
+    this.currentTH = null;
+    this.currentCol = null;
+    this.selectedCols = [];
+    this.currentWidth = null;
+    this.newSize = null;
+    this.startY = null;
+    this.startWidth = null;
+    this.startOffset = null;
+    this.handle = document.createElement('DIV');
+    this.guide = document.createElement('DIV');
+    this.eventManager = eventManagerObject(this);
+    this.pressed = null;
+    this.dblclick = 0;
+    this.autoresizeTimeout = null;
+    this.manualColumnWidths = [];
 
-  var saveManualColumnWidths = function() {
-    var instance = this;
-    Handsontable.hooks.run(instance, 'persistentStateSave', 'manualColumnWidths', instance.manualColumnWidths);
-  };
+    addClass(this.handle, 'manualColumnResizer');
+    addClass(this.guide, 'manualColumnResizerGuide');
+  }
 
-  var loadManualColumnWidths = function() {
-    var instance = this;
-    var storedState = {};
-    Handsontable.hooks.run(instance, 'persistentStateLoad', 'manualColumnWidths', storedState);
+  /**
+   * Check if the plugin is enabled in the handsontable settings.
+   *
+   * @returns {Boolean}
+   */
+  isEnabled() {
+    return this.hot.getSettings().manualColumnResize;
+  }
+
+  /**
+   * Enable plugin for this Handsontable instance.
+   */
+  enablePlugin() {
+    if (this.enabled) {
+      return;
+    }
+
+    this.manualColumnWidths = [];
+    let initialColumnWidth = this.hot.getSettings().manualColumnResize;
+    let loadedManualColumnWidths = this.loadManualColumnWidths();
+
+    this.addHook('modifyColWidth', (width, col) => this.onModifyColWidth(width, col));
+    this.addHook('beforeStretchingColumnWidth', (stretchedWidth, column) => this.onBeforeStretchingColumnWidth(stretchedWidth, column));
+    this.addHook('beforeColumnResize', (currentColumn, newSize, isDoubleClick) => this.onBeforeColumnResize(currentColumn, newSize, isDoubleClick));
+
+    if (typeof loadedManualColumnWidths != 'undefined') {
+      this.manualColumnWidths = loadedManualColumnWidths;
+    } else if (Array.isArray(initialColumnWidth)) {
+      this.manualColumnWidths = initialColumnWidth;
+    } else {
+      this.manualColumnWidths = [];
+    }
+
+    Handsontable.hooks.register('beforeColumnResize');
+    Handsontable.hooks.register('afterColumnResize');
+
+    this.bindEvents();
+
+    super.enablePlugin();
+  }
+
+  /**
+   * Updates the plugin to use the latest options you have specified.
+   */
+  updatePlugin() {
+    let initialColumnWidth = this.hot.getSettings().manualColumnResize;
+
+    if (Array.isArray(initialColumnWidth)) {
+      this.manualColumnWidths = initialColumnWidth;
+
+    } else if (!initialColumnWidth) {
+      this.manualColumnWidths = [];
+    }
+  }
+
+  /**
+   * Disable plugin for this Handsontable instance.
+   */
+  disablePlugin() {
+    super.disablePlugin();
+  }
+
+  /**
+   * Save the current sizes using the persistentState plugin.
+   */
+  saveManualColumnWidths() {
+    this.hot.runHooks('persistentStateSave', 'manualColumnWidths', this.manualColumnWidths);
+  }
+
+  /**
+   * Load the previously saved sizes using the persistentState plugin.
+   *
+   * @returns {Array}
+   */
+  loadManualColumnWidths() {
+    let storedState = {};
+
+    this.hot.runHooks('persistentStateLoad', 'manualColumnWidths', storedState);
+
     return storedState.value;
-  };
+  }
 
-  function setupHandlePosition(TH) {
-    instance = this;
-    currentTH = TH;
-
-    var col = this.view.wt.wtTable.getCoords(TH).col; //getCoords returns WalkontableCellCoords
-    if (col >= 0) { //if not row header
-      currentCol = col;
-      var box = currentTH.getBoundingClientRect();
-      startOffset = box.left - 6;
-      startWidth = parseInt(box.width, 10);
-      handle.style.top = box.top + 'px';
-      handle.style.left = startOffset + startWidth + 'px';
-      instance.rootElement.appendChild(handle);
+  /**
+   * Set the resize handle position.
+   *
+   * @param {HTMLCellElement} TH TH HTML element.
+   */
+  setupHandlePosition(TH) {
+    if (!TH.parentNode) {
+      return false;
     }
-  }
 
-  function refreshHandlePosition() {
-    handle.style.left = startOffset + currentWidth + 'px';
-  }
+    this.currentTH = TH;
 
-  function setupGuidePosition() {
-    var instance = this;
-    dom.addClass(handle, 'active');
-    dom.addClass(guide, 'active');
-    guide.style.top = handle.style.top;
-    guide.style.left = handle.style.left;
-    guide.style.height = instance.view.maximumVisibleElementHeight(0) + 'px';
-    instance.rootElement.appendChild(guide);
-  }
+    let col = this.hot.view.wt.wtTable.getCoords(TH).col; // getCoords returns WalkontableCellCoords
+    let headerHeight = outerHeight(this.currentTH);
 
-  function refreshGuidePosition() {
-    guide.style.left = handle.style.left;
-  }
+    if (col >= 0) { // if not col header
+      let box = this.currentTH.getBoundingClientRect();
 
-  function hideHandleAndGuide() {
-    dom.removeClass(handle, 'active');
-    dom.removeClass(guide, 'active');
-  }
+      this.currentCol = col;
+      this.selectedCols = [];
 
-  var checkColumnHeader = function(element) {
-    if (element.tagName != 'BODY') {
-      if (element.parentNode.tagName == 'THEAD') {
-        return true;
+      if (this.hot.selection.isSelected() && this.hot.selection.selectedHeader.cols) {
+        let {from, to} = this.hot.getSelectedRange();
+        let start = from.col;
+        let end = to.col;
+
+        if (start >= end) {
+          start = to.col;
+          end = from.col;
+        }
+
+        if (this.currentCol >= start && this.currentCol <= end) {
+          rangeEach(start, end, (i) => this.selectedCols.push(i));
+
+        } else {
+          this.selectedCols.push(this.currentCol);
+        }
       } else {
-        element = element.parentNode;
-        return checkColumnHeader(element);
+        this.selectedCols.push(this.currentCol);
       }
-    }
-    return false;
-  };
 
-  var getTHFromTargetElement = function(element) {
+      this.startOffset = box.left - 6;
+      this.startWidth = parseInt(box.width, 10);
+      this.handle.style.top = box.top + 'px';
+      this.handle.style.left = this.startOffset + this.startWidth + 'px';
+      this.handle.style.height = headerHeight + 'px';
+      this.hot.rootElement.appendChild(this.handle);
+    }
+  }
+
+  /**
+   * Refresh the resize handle position.
+   */
+  refreshHandlePosition() {
+    this.handle.style.left = this.startOffset + this.currentWidth + 'px';
+  }
+
+  /**
+   * Set the resize guide position.
+   */
+  setupGuidePosition() {
+    let handleHeight = parseInt(outerHeight(this.handle), 10);
+    let handleBottomPosition = parseInt(this.handle.style.top, 10) + handleHeight;
+    let maximumVisibleElementHeight = parseInt(this.hot.view.maximumVisibleElementHeight(0), 10);
+
+    addClass(this.handle, 'active');
+    addClass(this.guide, 'active');
+
+    this.guide.style.top = handleBottomPosition + 'px';
+    this.guide.style.left = this.handle.style.left;
+    this.guide.style.height = (maximumVisibleElementHeight - handleHeight) + 'px';
+    this.hot.rootElement.appendChild(this.guide);
+  }
+
+  /**
+   * Refresh the resize guide position.
+   */
+  refreshGuidePosition() {
+    this.guide.style.left = this.handle.style.left;
+  }
+
+  /**
+   * Hide both the resize handle and resize guide.
+   */
+  hideHandleAndGuide() {
+    removeClass(this.handle, 'active');
+    removeClass(this.guide, 'active');
+  }
+
+  /**
+   * Check if provided element is considered a column header.
+   *
+   * @param {HTMLElement} element HTML element.
+   * @returns {Boolean}
+   */
+  checkIfColumnHeader(element) {
+    if (element != this.hot.rootElement) {
+      let parent = element.parentNode;
+
+      if (parent.tagName === 'THEAD') {
+        return true;
+      }
+
+      return this.checkIfColumnHeader(parent);
+    }
+
+    return false;
+  }
+
+  /**
+   * Get the TH element from the provided element.
+   *
+   * @param {HTMLElement} element HTML element.
+   * @returns {HTMLElement}
+   */
+  getTHFromTargetElement(element) {
     if (element.tagName != 'TABLE') {
       if (element.tagName == 'TH') {
         return element;
       } else {
-        return getTHFromTargetElement(element.parentNode);
+        return this.getTHFromTargetElement(element.parentNode);
       }
     }
+
     return null;
-  };
+  }
 
-  var bindEvents = function() {
-    var instance = this;
-    var pressed;
-    var dblclick = 0;
-    var autoresizeTimeout = null;
+  /**
+   * 'mouseover' event callback - set the handle position.
+   *
+   * @private
+   * @param {MouseEvent} event
+   */
+  onMouseOver(event) {
+    if (this.checkIfColumnHeader(event.target)) {
+      let th = this.getTHFromTargetElement(event.target);
 
-    eventManager.addEventListener(instance.rootElement, 'mouseover', function(e) {
-      if (checkColumnHeader(e.target)) {
-        var th = getTHFromTargetElement(e.target);
-        if (th) {
-          if (!pressed) {
-            setupHandlePosition.call(instance, th);
-          }
+      if (!th) {
+        return;
+      }
+
+      let colspan = th.getAttribute('colspan');
+
+      if (th && (colspan === null || colspan === 1)) {
+        if (!this.pressed) {
+          this.setupHandlePosition(th);
         }
-      }
-    });
-
-    eventManager.addEventListener(instance.rootElement, 'mousedown', function(e) {
-      if (dom.hasClass(e.target, 'manualColumnResizer')) {
-        setupGuidePosition.call(instance);
-        pressed = instance;
-
-        if (autoresizeTimeout == null) {
-          autoresizeTimeout = setTimeout(function() {
-            if (dblclick >= 2) {
-              var hookNewSize = Handsontable.hooks.run(instance, 'beforeColumnResize', currentCol, newSize, true);
-
-              if (hookNewSize !== void 0) {
-                newSize = hookNewSize;
-              }
-              setManualSize(currentCol, newSize);
-              instance.forceFullRender = true;
-              instance.view.render(); //updates all
-              instance.view.wt.wtOverlays.adjustElementsSize(true);
-              Handsontable.hooks.run(instance, 'afterColumnResize', currentCol, newSize, true);
-            }
-            dblclick = 0;
-            autoresizeTimeout = null;
-          }, 500);
-          instance._registerTimeout(autoresizeTimeout);
-        }
-        dblclick++;
-
-        startX = helper.pageX(e);
-        newSize = startWidth;
-      }
-    });
-
-    eventManager.addEventListener(window, 'mousemove', function(e) {
-      if (pressed) {
-        currentWidth = startWidth + (helper.pageX(e) - startX);
-        newSize = setManualSize(currentCol, currentWidth); //save col width
-        refreshHandlePosition();
-        refreshGuidePosition();
-      }
-    });
-
-    eventManager.addEventListener(window, 'mouseup', function() {
-      if (pressed) {
-        hideHandleAndGuide();
-        pressed = false;
-
-        if (newSize != startWidth) {
-          Handsontable.hooks.run(instance, 'beforeColumnResize', currentCol, newSize);
-          instance.forceFullRender = true;
-          instance.view.render(); //updates all
-          instance.view.wt.wtOverlays.adjustElementsSize(true);
-
-          saveManualColumnWidths.call(instance);
-
-          Handsontable.hooks.run(instance, 'afterColumnResize', currentCol, newSize);
-        }
-
-        setupHandlePosition.call(instance, currentTH);
-      }
-    });
-
-    instance.addHook('afterDestroy', unbindEvents);
-  };
-
-  var unbindEvents = function() {
-    eventManager.clear();
-  };
-
-  this.init = function(source) {
-    this.manualColumnWidths = [];
-
-    var instance = this;
-    var manualColumnWidthEnabled = !! (this.getSettings().manualColumnResize);
-
-    if (manualColumnWidthEnabled) {
-      var initialColumnWidths = this.getSettings().manualColumnResize;
-      var loadedManualColumnWidths = loadManualColumnWidths.call(instance);
-
-      // update plugin usages count for manualColumnPositions
-      if (typeof instance.manualColumnWidthsPluginUsages != 'undefined') {
-        instance.manualColumnWidthsPluginUsages.push('manualColumnResize');
-      } else {
-        instance.manualColumnWidthsPluginUsages = ['manualColumnResize'];
-      }
-
-      if (typeof loadedManualColumnWidths != 'undefined') {
-        this.manualColumnWidths = loadedManualColumnWidths;
-      } else if (Array.isArray(initialColumnWidths)) {
-        this.manualColumnWidths = initialColumnWidths;
-      } else {
-        this.manualColumnWidths = [];
-      }
-
-      if (!source) {
-        bindEvents.call(this);
-      }
-    } else {
-      var pluginUsagesIndex = instance.manualColumnWidthsPluginUsages ? instance.manualColumnWidthsPluginUsages.indexOf('manualColumnResize') : -1;
-
-      if (pluginUsagesIndex > -1) {
-        unbindEvents.call(this);
-        this.manualColumnWidths = [];
       }
     }
-  };
+  }
 
+  /**
+   * Auto-size row after doubleclick - callback.
+   *
+   * @private
+   */
+  afterMouseDownTimeout() {
+    const render = () => {
+      this.hot.forceFullRender = true;
+      this.hot.view.render(); // updates all
+      this.hot.view.wt.wtOverlays.adjustElementsSize(true);
+    };
+    const resize = (selectedCol, forceRender) => {
+      let hookNewSize = this.hot.runHooks('beforeColumnResize', selectedCol, this.newSize, true);
 
-  var setManualSize = function(col, width) {
+      if (hookNewSize !== void 0) {
+        this.newSize = hookNewSize;
+      }
+
+      if (this.hot.getSettings().stretchH === 'all') {
+        this.clearManualSize(selectedCol);
+      } else {
+        this.setManualSize(selectedCol, this.newSize); // double click sets by auto row size plugin
+      }
+
+      if (forceRender) {
+        render();
+      }
+
+      this.saveManualColumnWidths();
+
+      this.hot.runHooks('afterColumnResize', selectedCol, this.newSize, true);
+    };
+
+    if (this.dblclick >= 2) {
+      let selectedColsLength = this.selectedCols.length;
+
+      if (selectedColsLength > 1) {
+        arrayEach(this.selectedCols, (selectedCol) => {
+          resize(selectedCol);
+        });
+        render();
+      } else {
+        arrayEach(this.selectedCols, (selectedCol) => {
+          resize(selectedCol, true);
+        });
+      }
+    }
+    this.dblclick = 0;
+    this.autoresizeTimeout = null;
+  }
+
+  /**
+   * 'mousedown' event callback.
+   *
+   * @private
+   * @param {MouseEvent} e
+   */
+  onMouseDown(event) {
+    if (hasClass(event.target, 'manualColumnResizer')) {
+      this.setupGuidePosition();
+      this.pressed = this.hot;
+
+      if (this.autoresizeTimeout === null) {
+        this.autoresizeTimeout = setTimeout(() => this.afterMouseDownTimeout(), 500);
+
+        this.hot._registerTimeout(this.autoresizeTimeout);
+      }
+      this.dblclick++;
+
+      this.startX = pageX(event);
+      this.newSize = this.startWidth;
+    }
+  }
+
+  /**
+   * 'mousemove' event callback - refresh the handle and guide positions, cache the new column width.
+   *
+   * @private
+   * @param {MouseEvent} e
+   */
+  onMouseMove(event) {
+    if (this.pressed) {
+      this.currentWidth = this.startWidth + (pageX(event) - this.startX);
+
+      arrayEach(this.selectedCols, (selectedCol) => {
+        this.newSize = this.setManualSize(selectedCol, this.currentWidth);
+      });
+
+      this.refreshHandlePosition();
+      this.refreshGuidePosition();
+    }
+  }
+
+  /**
+   * 'mouseup' event callback - apply the column resizing.
+   *
+   * @private
+   * @param {MouseEvent} e
+   */
+  onMouseUp(event) {
+    const render = () => {
+      this.hot.forceFullRender = true;
+      this.hot.view.render(); // updates all
+      this.hot.view.wt.wtOverlays.adjustElementsSize(true);
+    };
+    const resize = (selectedCol, forceRender) => {
+      this.hot.runHooks('beforeColumnResize', selectedCol, this.newSize);
+
+      if (forceRender) {
+        render();
+      }
+
+      this.saveManualColumnWidths();
+
+      this.hot.runHooks('afterColumnResize', selectedCol, this.newSize);
+    };
+
+    if (this.pressed) {
+      this.hideHandleAndGuide();
+      this.pressed = false;
+
+      if (this.newSize != this.startWidth) {
+        let selectedColsLength = this.selectedCols.length;
+
+        if (selectedColsLength > 1) {
+          arrayEach(this.selectedCols, (selectedCol) => {
+            resize(selectedCol);
+          });
+          render();
+        } else {
+          arrayEach(this.selectedCols, (selectedCol) => {
+            resize(selectedCol, true);
+          });
+        }
+      }
+
+      this.setupHandlePosition(this.currentTH);
+    }
+  }
+
+  /**
+   * Bind the mouse events.
+   *
+   * @private
+   */
+  bindEvents() {
+    this.eventManager.addEventListener(this.hot.rootElement, 'mouseover', (e) => this.onMouseOver(e));
+    this.eventManager.addEventListener(this.hot.rootElement, 'mousedown', (e) => this.onMouseDown(e));
+    this.eventManager.addEventListener(window, 'mousemove', (e) => this.onMouseMove(e));
+    this.eventManager.addEventListener(window, 'mouseup', (e) => this.onMouseUp(e));
+  }
+
+  /**
+   * Cache the current column width.
+   *
+   * @param {Number} column Column index.
+   * @param {Number} width Column width.
+   * @returns {Number}
+   */
+  setManualSize(column, width) {
     width = Math.max(width, 20);
 
     /**
      *  We need to run col through modifyCol hook, in case the order of displayed columns is different than the order
      *  in data source. For instance, this order can be modified by manualColumnMove plugin.
      */
-    col = Handsontable.hooks.run(instance, 'modifyCol', col);
-    instance.manualColumnWidths[col] = width;
+    column = this.hot.runHooks('modifyCol', column);
+
+    this.manualColumnWidths[column] = width;
 
     return width;
-  };
+  }
 
-  this.modifyColWidth = function(width, col) {
-    col = this.runHooks('modifyCol', col);
+  /**
+   * Clear cache for the current column index.
+   *
+   * @param {Number} column Column index.
+   */
+  clearManualSize(column) {
+    column = this.hot.runHooks('modifyCol', column);
 
-    if (this.getSettings().manualColumnResize && this.manualColumnWidths[col]) {
-      return this.manualColumnWidths[col];
+    this.manualColumnWidths[column] = void 0;
+  }
+
+  /**
+   * Modify the provided column width, based on the plugin settings
+   *
+   * @private
+   * @param {Number} width Column width.
+   * @param {Number} column Column index.
+   * @returns {Number}
+   */
+  onModifyColWidth(width, column) {
+    if (this.enabled) {
+      column = this.hot.runHooks('modifyCol', column);
+
+      if (this.hot.getSettings().manualColumnResize && this.manualColumnWidths[column]) {
+        return this.manualColumnWidths[column];
+      }
     }
 
     return width;
-  };
+  }
+
+  /**
+   * Modify the provided column stretched width. This hook decides if specified column should be stretched or not.
+   *
+   * @private
+   * @param {Number} stretchedWidth Stretched width.
+   * @param {Number} column Column index.
+   * @returns {Number}
+   */
+  onBeforeStretchingColumnWidth(stretchedWidth, column) {
+    let width = this.manualColumnWidths[column];
+
+    if (width === void 0) {
+      width = stretchedWidth;
+    }
+
+    return width;
+  }
+
+  /**
+   * `beforeColumnResize` hook callback.
+   *
+   * @private
+   * @param {Number} currentColumn Index of the resized column.
+   * @param {Number} newSize Calculated new column width.
+   * @param {Boolean} isDoubleClick Flag that determines whether there was a double-click.
+   */
+  onBeforeColumnResize() {
+    // clear the header height cache information
+    this.hot.view.wt.wtViewport.hasOversizedColumnHeadersMarked = {};
+  }
 }
-var htManualColumnResize = new ManualColumnResize();
 
-Handsontable.hooks.add('init', htManualColumnResize.init);
-Handsontable.hooks.add('afterUpdateSettings', function () {
-  htManualColumnResize.init.call(this, 'afterUpdateSettings');
-});
-Handsontable.hooks.add('modifyColWidth', htManualColumnResize.modifyColWidth);
+export {ManualColumnResize};
 
-Handsontable.hooks.register('afterColumnResize');
-Handsontable.hooks.register('beforeColumnResize');
+registerPlugin('manualColumnResize', ManualColumnResize);
