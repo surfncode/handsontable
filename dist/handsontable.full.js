@@ -4479,7 +4479,7 @@ var domHelpers = ($__helpers_47_dom_47_element__ = _dereq_("helpers/dom/element"
 var domEventHelpers = ($__helpers_47_dom_47_event__ = _dereq_("helpers/dom/event"), $__helpers_47_dom_47_event__ && $__helpers_47_dom_47_event__.__esModule && $__helpers_47_dom_47_event__ || {default: $__helpers_47_dom_47_event__});
 var HELPERS = [arrayHelpers, browserHelpers, dataHelpers, dateHelpers, featureHelpers, functionHelpers, mixedHelpers, numberHelpers, objectHelpers, settingHelpers, stringHelpers, unicodeHelpers];
 var DOM = [domHelpers, domEventHelpers];
-Handsontable.buildDate = 'Mon Mar 06 2017 14:24:29 GMT+0100 (CET)';
+Handsontable.buildDate = 'Thu Mar 23 2017 17:41:49 GMT+0100 (CET)';
 Handsontable.packageName = 'handsontable';
 Handsontable.version = '0.31.0';
 var baseVersion = '@@baseVersion';
@@ -18646,8 +18646,8 @@ var $ManualRowMove = ManualRowMove;
         }
       }));
       this.rowsMapper.clearNull();
+      this.hot.runHooks('afterRowMove', rows, target);
     }
-    this.hot.runHooks('afterRowMove', rows, target);
   },
   changeSelection: function(startRow, endRow) {
     var selection = this.hot.selection;

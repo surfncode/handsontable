@@ -191,9 +191,9 @@ class ManualRowMove extends BasePlugin {
 
       // after moving we have to clear rowsMapper from null entries
       this.rowsMapper.clearNull();
+      this.hot.runHooks('afterRowMove', rows, target);
     }
-
-    this.hot.runHooks('afterRowMove', rows, target);
+    
   }
 
   /**
