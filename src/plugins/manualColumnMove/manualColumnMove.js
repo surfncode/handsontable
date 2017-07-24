@@ -323,6 +323,7 @@ class ManualColumnMove extends BasePlugin {
     let tbodyOffsetLeft = wtTable.TBODY.offsetLeft;
     let backlightElemMarginLeft = this.backlight.getOffset().left;
     let backlightElemWidth = this.backlight.getSize().width;
+    mouseOffsetLeft += backlightElemWidth;
     let rowHeaderWidth = 0;
 
     if ((priv.rootElementOffset + wtTable.holder.offsetWidth + scrollLeft) < priv.target.eventPageX) {

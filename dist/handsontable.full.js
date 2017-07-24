@@ -4479,7 +4479,7 @@ var domHelpers = ($__helpers_47_dom_47_element__ = _dereq_("helpers/dom/element"
 var domEventHelpers = ($__helpers_47_dom_47_event__ = _dereq_("helpers/dom/event"), $__helpers_47_dom_47_event__ && $__helpers_47_dom_47_event__.__esModule && $__helpers_47_dom_47_event__ || {default: $__helpers_47_dom_47_event__});
 var HELPERS = [arrayHelpers, browserHelpers, dataHelpers, dateHelpers, featureHelpers, functionHelpers, mixedHelpers, numberHelpers, objectHelpers, settingHelpers, stringHelpers, unicodeHelpers];
 var DOM = [domHelpers, domEventHelpers];
-Handsontable.buildDate = 'Thu Mar 23 2017 17:41:49 GMT+0100 (CET)';
+Handsontable.buildDate = 'Mon Jul 24 2017 12:43:26 GMT+0200 (CEST)';
 Handsontable.packageName = 'handsontable';
 Handsontable.version = '0.31.0';
 var baseVersion = '@@baseVersion';
@@ -17788,6 +17788,7 @@ var $ManualColumnMove = ManualColumnMove;
     var tbodyOffsetLeft = wtTable.TBODY.offsetLeft;
     var backlightElemMarginLeft = this.backlight.getOffset().left;
     var backlightElemWidth = this.backlight.getSize().width;
+    mouseOffsetLeft += backlightElemWidth;
     var rowHeaderWidth = 0;
     if ((priv.rootElementOffset + wtTable.holder.offsetWidth + scrollLeft) < priv.target.eventPageX) {
       if (priv.coordsColumn < priv.countCols) {
