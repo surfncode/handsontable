@@ -396,6 +396,8 @@ class ManualColumnMove extends BasePlugin {
       guidelineLeft = guidelineLeft - ((priv.rootElementOffset <= scrollableElement.scrollX) ? priv.rootElementOffset : 0);
     }
 
+    backlightLeft = guidelineLeft;  // 2017-08-17 Hack jmd timetonic to solve delta in grayzone issue #384
+
     this.backlight.setPosition(null, backlightLeft);
     this.guideline.setPosition(null, guidelineLeft);
   }
@@ -475,6 +477,7 @@ class ManualColumnMove extends BasePlugin {
 
       let mouseOffset = event.layerX - (fixedColumns ? wrapperIsWindow : 0);
       let leftOffset = Math.abs(this.getColumnsWidth(start, coords.col) + mouseOffset);
+      leftOffset = 0; // 2017-08-17 Hack jmd timetonic to solve delta in grayzone issue #384
 
       this.backlight.setPosition(topPos, this.getColumnsWidth(countColumnsFrom, start) + leftOffset);
       this.backlight.setSize(this.getColumnsWidth(start, end + 1), wtTable.hider.offsetHeight - topPos);

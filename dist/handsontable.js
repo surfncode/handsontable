@@ -4477,7 +4477,7 @@ var domHelpers = ($__helpers_47_dom_47_element__ = _dereq_("helpers/dom/element"
 var domEventHelpers = ($__helpers_47_dom_47_event__ = _dereq_("helpers/dom/event"), $__helpers_47_dom_47_event__ && $__helpers_47_dom_47_event__.__esModule && $__helpers_47_dom_47_event__ || {default: $__helpers_47_dom_47_event__});
 var HELPERS = [arrayHelpers, browserHelpers, dataHelpers, dateHelpers, featureHelpers, functionHelpers, mixedHelpers, numberHelpers, objectHelpers, settingHelpers, stringHelpers, unicodeHelpers];
 var DOM = [domHelpers, domEventHelpers];
-Handsontable.buildDate = 'Mon Jul 24 2017 12:43:26 GMT+0200 (CEST)';
+Handsontable.buildDate = 'Thu Aug 31 2017 20:39:29 GMT+0200 (CEST)';
 Handsontable.packageName = 'handsontable';
 Handsontable.version = '0.31.0';
 var baseVersion = '@@baseVersion';
@@ -17836,6 +17836,7 @@ var $ManualColumnMove = ManualColumnMove;
     } else if (scrollableElement.scrollX !== void 0 && priv.coordsColumn < priv.fixedColumns) {
       guidelineLeft = guidelineLeft - ((priv.rootElementOffset <= scrollableElement.scrollX) ? priv.rootElementOffset : 0);
     }
+    backlightLeft = guidelineLeft;
     this.backlight.setPosition(null, backlightLeft);
     this.guideline.setPosition(null, guidelineLeft);
   },
@@ -17893,6 +17894,7 @@ var $ManualColumnMove = ManualColumnMove;
       var wrapperIsWindow = scrollableElement.scrollX ? scrollableElement.scrollX - priv.rootElementOffset : 0;
       var mouseOffset = event.layerX - (fixedColumns ? wrapperIsWindow : 0);
       var leftOffset = Math.abs(this.getColumnsWidth(start, coords.col) + mouseOffset);
+      leftOffset = 0;
       this.backlight.setPosition(topPos, this.getColumnsWidth(countColumnsFrom, start) + leftOffset);
       this.backlight.setSize(this.getColumnsWidth(start, end + 1), wtTable.hider.offsetHeight - topPos);
       this.backlight.setOffset(null, leftOffset * -1);
