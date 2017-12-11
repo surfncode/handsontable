@@ -53,6 +53,9 @@ var onBeforeKeyDown = function onBeforeKeyDown(event) {
       that = instance.getActiveEditor(),
       ctrlDown;
 
+  if(that.lookupSubEditor) {
+    that = that.lookupSubEditor ;
+  }
   // catch CTRL but not right ALT (which in some systems triggers ALT+CTRL)
   ctrlDown = (event.ctrlKey || event.metaKey) && !event.altKey;
 

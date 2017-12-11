@@ -88,6 +88,9 @@ SelectEditor.prototype.setValue = function(value) {
 var onBeforeKeyDown = function(event) {
   var instance = this;
   var editor = instance.getActiveEditor();
+  if(editor.lookupSubEditor) {
+    editor = editor.lookupSubEditor;
+  } 
 
   switch (event.keyCode) {
     case KEY_CODES.ARROW_UP:

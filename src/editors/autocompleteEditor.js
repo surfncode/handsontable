@@ -42,6 +42,9 @@ var skipOne = false;
 function onBeforeKeyDown(event) {
   skipOne = false;
   let editor = this.getActiveEditor();
+  if(editor.lookupSubEditor) {
+    editor = editor.lookupSubEditor;
+  } 
 
   if (isPrintableChar(event.keyCode) || event.keyCode === KEY_CODES.BACKSPACE ||
     event.keyCode === KEY_CODES.DELETE || event.keyCode === KEY_CODES.INSERT) {

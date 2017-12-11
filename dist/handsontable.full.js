@@ -4479,7 +4479,7 @@ var domHelpers = ($__helpers_47_dom_47_element__ = _dereq_("helpers/dom/element"
 var domEventHelpers = ($__helpers_47_dom_47_event__ = _dereq_("helpers/dom/event"), $__helpers_47_dom_47_event__ && $__helpers_47_dom_47_event__.__esModule && $__helpers_47_dom_47_event__ || {default: $__helpers_47_dom_47_event__});
 var HELPERS = [arrayHelpers, browserHelpers, dataHelpers, dateHelpers, featureHelpers, functionHelpers, mixedHelpers, numberHelpers, objectHelpers, settingHelpers, stringHelpers, unicodeHelpers];
 var DOM = [domHelpers, domEventHelpers];
-Handsontable.buildDate = 'Thu Aug 31 2017 20:39:29 GMT+0200 (CEST)';
+Handsontable.buildDate = 'Thu Dec 07 2017 17:45:14 GMT+0100 (CET)';
 Handsontable.packageName = 'handsontable';
 Handsontable.version = '0.31.0';
 var baseVersion = '@@baseVersion';
@@ -7905,6 +7905,9 @@ var skipOne = false;
 function onBeforeKeyDown(event) {
   skipOne = false;
   var editor = this.getActiveEditor();
+  if (editor.lookupSubEditor) {
+    editor = editor.lookupSubEditor;
+  }
   if (isPrintableChar(event.keyCode) || event.keyCode === KEY_CODES.BACKSPACE || event.keyCode === KEY_CODES.DELETE || event.keyCode === KEY_CODES.INSERT) {
     var timeOffset = 0;
     if (event.keyCode === KEY_CODES.C && (event.ctrlKey || event.metaKey)) {
@@ -9076,6 +9079,9 @@ SelectEditor.prototype.setValue = function(value) {
 var onBeforeKeyDown = function(event) {
   var instance = this;
   var editor = instance.getActiveEditor();
+  if (editor.lookupSubEditor) {
+    editor = editor.lookupSubEditor;
+  }
   switch (event.keyCode) {
     case KEY_CODES.ARROW_UP:
       var previousOptionIndex = editor.select.selectedIndex - 1;
@@ -9276,6 +9282,9 @@ var onBeforeKeyDown = function onBeforeKeyDown(event) {
   var instance = this,
       that = instance.getActiveEditor(),
       ctrlDown;
+  if (that.lookupSubEditor) {
+    that = that.lookupSubEditor;
+  }
   ctrlDown = (event.ctrlKey || event.metaKey) && !event.altKey;
   if (event.target !== that.TEXTAREA || isImmediatePropagationStopped(event)) {
     return;
